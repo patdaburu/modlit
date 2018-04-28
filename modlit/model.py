@@ -11,12 +11,9 @@ This module contains general members to help you work with the model.
 import inspect
 import pkgutil
 from types import ModuleType
+from typing import List
 from .meta import Column, COLUMN_META_ATTR, TableMeta, TABLE_META_ATTR
 
-
-_SKIP_ON_LOAD = [
-
-]  #: the names of modules that are not loaded automatically with the model
 
 IS_MODEL_CLASS = '__model_cls__'  #: signifies a model class
 
@@ -68,11 +65,14 @@ def model(label: str):
     return modelify
 
 
-def load(package: ModuleType):
+def load(package: ModuleType,
+         skip_modules: List[str]=None):
     """
     Load the data model.
 
     :param package: the package that contains the model classes
+    :param skip_modules: a list of names of the modules that should be skipped
+        when importing the package
     """
     # Get the package's name...
     prefix = package.__name__ + '.'
@@ -80,7 +80,7 @@ def load(package: ModuleType):
     for _, modname, _ in pkgutil.walk_packages(
             package.__path__, prefix):
         # If a module is explicitly excluded by name...
-        if modname in _SKIP_ON_LOAD:
+        if skip_modules and modname in skip_modules:
             # ...skip it.
             continue
         else:

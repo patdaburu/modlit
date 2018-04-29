@@ -66,7 +66,7 @@ def model(label: str):
 
 
 def load(package: ModuleType,
-         skip_modules: List[str]=None):
+         skip_modules: List[str] = None):
     """
     Load the data model.
 

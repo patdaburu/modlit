@@ -19,6 +19,7 @@ from sphinx.util.docstrings import prepare_docstring
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from titlecase import titlecase
+from modlit import __version__ as modlit_version
 from .monkeypatch import monkeypatch
 from ...base import ModelMixin
 from ...model import IS_MODEL_CLASS
@@ -31,9 +32,6 @@ from ...meta import (
 monkeypatch()
 
 
-__version__ = '0.0.1'  #: the version of this Sphinx extension
-
-
 def setup(app):
     """
     Set up the Sphinx extension.
@@ -43,7 +41,8 @@ def setup(app):
     # type: (Sphinx) -> Dict[unicode, Any]
     app.add_autodocumenter(ModelClassDocumenter)
     app.add_autodocumenter(ColumnAttributeDocumenter)
-    return {'version': __version__, 'parallel_read_safe': True}
+    app.connect('autodoc-process-docstring', no_namedtuple_attrib_docstring)
+    return {'version': modlit_version, 'parallel_read_safe': True}
 
 
 # pylint: disable=too-many-locals
@@ -237,3 +236,32 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
         # Put it all together, and...
         rst = '\n'.join(lines)
         return rst  # ...that's that.
+
+
+# pylint: disable=unused-argument, too-many-arguments
+def no_namedtuple_attrib_docstring(app, what, name, obj, options, lines):
+    """
+    `namedtuples` are awesome.  Unfortunately, if you find yourself with a large
+    one and you use Sphinx for documentation you're going to find yourself with
+    a gigantic part of your documentation documenting members as 'Alias for
+    field...'  This function overrides that behavior.
+
+    :param app:
+    :param what:
+    :param name:
+    :param obj:
+    :param options:
+    :param lines: the lines that may contain Alias for field number'
+    :return:
+
+    .. seealso::
+
+         https://chrisdown.name/2015/09/20/removing-namedtuple-docstrings-from-sphinx.html
+    """
+    is_namedtuple_docstring = (
+        len(lines) > 0 and
+        lines[0].startswith('Alias for field number')
+    )
+    if is_namedtuple_docstring:
+        # We don't return, so we need to purge in-place
+        del lines[:]

@@ -3,7 +3,7 @@
 
 # Created by pat on 4/9/18
 """
-.. currentmodule:: modeldoc.py
+.. currentmodule:: modlit.sphinx.ext.modeldoc
 .. moduleauthor:: Pat Daburu <pat@daburu.net>
 
 This module contains a Sphinx extension that can be used to generate specialized

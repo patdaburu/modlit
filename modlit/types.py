@@ -13,7 +13,7 @@ import uuid
 
 class GUID(TypeDecorator):
     """
-    This is a Platform-independent GUID type that uses PostgreSQL's UUID type (
+    This is a Platform-independent GUID type that uses PostgreSQL's UUID type
     and otherwise uses CHAR(32), storing as stringified hex values.
 
     .. seealso::

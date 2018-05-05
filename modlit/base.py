@@ -9,8 +9,11 @@
 The GeoAlchemy declarative base for the data model is defined in this module
 along with some other helpful classes.
 """
+import uuid
 from sqlalchemy.ext.declarative import declarative_base
 from .geometry import GeometryTypes
+from .meta import column, ColumnMeta, Target
+from .types import GUID
 
 
 Base = declarative_base()  #: This is the model's declarative base.  pylint: disable=invalid-name
@@ -44,3 +47,19 @@ class ModelMixin(object):
             return gtyp
         except KeyError:
             return GeometryTypes.NONE
+
+
+class AutoIdMixin(object):
+
+    id = column(
+        GUID,
+        meta=ColumnMeta(
+            label='ID',
+            target=Target(
+                guaranteed=True,
+                calculated=True
+            )
+        ),
+        default=uuid.uuid4(),
+        primary_key=True
+    )

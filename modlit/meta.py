@@ -164,10 +164,10 @@ class ColumnMeta(_MetaDescription):
                  source: Source = None,
                  target: Target = None):
         self._label = label if label is not None else ''
-        self._description = description
+        self._description = description if description is not None else ''
         self._nena = nena
-        self._source = source
-        self._target = target
+        self._source = source if source is not None else Source()
+        self._target = target if target is not None else Target()
 
     @property
     def label(self) -> str:

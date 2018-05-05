@@ -11,7 +11,7 @@ documentation for model classes.
 """
 import logging
 import uuid
-from typing import Any, cast, Set, Type, Union
+from typing import Any, cast, List, Set, Type, Union
 from sphinx.ext.autodoc import (
     ClassLevelDocumenter, AttributeDocumenter, ClassDocumenter
 )
@@ -118,7 +118,6 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
     attributes.
     """
     def add_content(self, more_content, no_docstring=False):
-        # type: (Any, bool) -> None
         # Remember the original no_docstring parameter.
         _no_docstring = no_docstring
         # If this attribute appears to be a Column...
@@ -133,8 +132,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
 
         ClassLevelDocumenter.add_content(self, more_content, _no_docstring)
 
-    def get_doc(self, encoding=None, ignore=1):
-        # type: (unicode, int) -> List[List[unicode]]
+    def get_doc(self, encoding=None, ignore: int=1) -> List[List[str]]:
         """Decode and return lines of the docstring(s) for the object."""
         # If the current object is a Column (or InstrumentedAttribute) and
         # it appears to have metadata...

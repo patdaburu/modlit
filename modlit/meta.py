@@ -14,7 +14,7 @@ from enum import IntFlag
 from functools import reduce
 from typing import Any, NamedTuple, Type, Union
 from sqlalchemy import Column
-from typing import Iterable, Tuple
+from typing import cast, Iterable
 
 
 COLUMN_META_ATTR = '__meta__'  #: the property that contains column metadata
@@ -105,7 +105,7 @@ class Target(_MetaDescription):
         try:
             # ...we need to see if we can iterate the argument.  If we can,
             # we'll get a logical OR of all the values.
-            _usage = reduce(lambda a, b: a or b, usage)
+            _usage = reduce(lambda a, b: a | b, cast(Iterable, usage))
         except TypeError:
             pass  # The argument wasn't iterable.
         self._usage = _usage

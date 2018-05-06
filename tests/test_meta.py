@@ -39,32 +39,32 @@ class TestTargetSuite(unittest.TestCase):
         print(f'expected = {expected}')
 
 
-# class TestColumnMetaSuite(unittest.TestCase):
-#
-#     @parameterized.expand([
-#         (
-#                 'Label', 'Description', 'NENA',
-#                 Source(Requirement.REQUIRED),
-#                 Target(guaranteed=True, calculated=True, usage=Usage.DISPLAY),
-#                 ColumnMeta(
-#                     label='Label', description='Description', nena='NENA',
-#                     source=Source(Requirement.REQUIRED),
-#                     target=Target(
-#                         guaranteed=True,
-#                         calculated=True,
-#                         usage=Usage.DISPLAY
-#                     )
-#                 )
-#         ),
-#     ])
-#     def test_init_expectedValues(self,
-#                                  label, description, nena, source, target,
-#                                  expected):
-#         # Arrange/Act.
-#         meta = ColumnMeta(label=label, description=description, nena=nena,
-#                           source=source, target=target)
-#         # Assert.
-#         self.assertEqual(expected, meta)
+class TestColumnMetaSuite(unittest.TestCase):
+
+    @parameterized.expand([
+        (
+                'Label', 'Description', 'NENA',
+                Source(Requirement.REQUIRED),
+                Target(guaranteed=True, calculated=True, usage=Usage.DISPLAY),
+                ColumnMeta(
+                    label='Label', description='Description', nena='NENA',
+                    source=Source(Requirement.REQUIRED),
+                    target=Target(
+                        guaranteed=True,
+                        calculated=True,
+                        usage=Usage.DISPLAY
+                    )
+                )
+        ),
+    ])
+    def test_init_expectedValues(self,
+                                 label, description, nena, source, target,
+                                 expected):
+        # Arrange/Act.
+        meta = ColumnMeta(label=label, description=description, nena=nena,
+                          source=source, target=target)
+        # Assert.
+        self.assertEqual(expected, meta)
 
 
 if __name__ == '__main__':

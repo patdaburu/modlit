@@ -9,10 +9,9 @@
 This module contains general members to help you work with the model.
 """
 import inspect
-import pkgutil
-from types import ModuleType
 from typing import List
 from .meta import Column, COLUMN_META_ATTR, TableMeta, TABLE_META_ATTR
+from .modules import walk_load
 
 
 IS_MODEL_CLASS = '__model_cls__'  #: signifies a model class
@@ -65,8 +64,7 @@ def model(label: str):
     return modelify
 
 
-def load(package: ModuleType,
-         skip_modules: List[str] = None):
+def load(package, skip_modules: List[str] = None):
     """
     Load the data model.
 
@@ -74,15 +72,4 @@ def load(package: ModuleType,
     :param skip_modules: a list of names of the modules that should be skipped
         when importing the package
     """
-    # Get the package's name...
-    prefix = package.__name__ + '.'
-    # ...so that we may import all its modules, one-by-one!
-    for _, modname, _ in pkgutil.walk_packages(
-            package.__path__, prefix):
-        # If a module is explicitly excluded by name...
-        if skip_modules and modname in skip_modules:
-            # ...skip it.
-            continue
-        else:
-            # Otherwise, load it up!
-            _ = __import__(modname)
+    walk_load(package, skip_modules=skip_modules)

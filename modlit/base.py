@@ -50,7 +50,9 @@ class ModelMixin(object):
 
 
 class AutoIdMixin(object):
-
+    """
+    This mixin includes an `id` column.
+    """
     id = column(
         GUID,
         meta=ColumnMeta(

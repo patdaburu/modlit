@@ -132,7 +132,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
 
         ClassLevelDocumenter.add_content(self, more_content, _no_docstring)
 
-    def get_doc(self, encoding=None, ignore: int=1) -> List[List[str]]:
+    def get_doc(self, encoding=None, ignore: int = 1) -> List[List[str]]:
         """Decode and return lines of the docstring(s) for the object."""
         # If the current object is a Column (or InstrumentedAttribute) and
         # it appears to have metadata...

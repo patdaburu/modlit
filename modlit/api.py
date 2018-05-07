@@ -8,9 +8,12 @@
 
 This module defines classes you can use to develop APIs for your model.
 """
+from typing import List
 from flask import Flask
 from sqlalchemy.engine.base import Engine
+from sqlalchemy.orm import sessionmaker
 from .errors import ModlitError
+from .modules import walk_load
 
 
 class EngineMixin(object):
@@ -19,7 +22,8 @@ class EngineMixin(object):
     for installing one.
     """
 
-    _engine_attr = '__engine__'  #: the name of the engine attribute
+    _engine_attr = '__engine__'
+    _sessionmaker_attr = '__sessionmaker__'
 
     @property
     def engine(self) -> Engine:
@@ -47,8 +51,28 @@ class EngineMixin(object):
         if not hasattr(self, self._engine_attr):
             # ...this one will do.
             setattr(self, self._engine_attr, engine)
-        else: # We have a problem.
+            # We can also now create a session maker and bind it to the
+            # engine.
+            setattr(self, self._sessionmaker_attr, sessionmaker(bind=engine))
+        else:  # We have a problem.
             raise ModlitError('The engine has already been installed.')
+
+    def session(self):
+        """
+        Get a new session.
+
+        :return: the new session
+        :raises ModlitError: if the engine has not been installed
+        """
+        try:
+            _sessionmaker = getattr(self, self._sessionmaker_attr)
+            return _sessionmaker()
+        except AttributeError:
+            raise ModlitError(
+                'The sessionmaker has not been initialized. '
+                'This likely means no engine is installed. '
+                'Use the install_engine() function.'
+            )
 
 
 class ModlitFlask(Flask, EngineMixin):
@@ -57,3 +81,14 @@ class ModlitFlask(Flask, EngineMixin):
     with some additional features to help you build an API around your model.
     """
     pass
+
+
+def load_routes(package, skip_modules: List[str] = None):
+    """
+    Load the data model.
+
+    :param package: the package that contains the model classes
+    :param skip_modules: a list of names of the modules that should be skipped
+        when importing the package
+    """
+    walk_load(package, skip_modules=skip_modules)

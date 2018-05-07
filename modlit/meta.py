@@ -13,8 +13,8 @@ from abc import ABC
 from enum import IntFlag
 from functools import reduce
 from typing import Any, NamedTuple, Type, Union
-from sqlalchemy import Column
 from typing import cast, Iterable
+from sqlalchemy import Column
 
 
 COLUMN_META_ATTR = '__meta__'  #: the property that contains column metadata
@@ -25,6 +25,7 @@ class _MetaDescription(ABC):
     """
     This is base class for objects that provide meta-data descriptions.
     """
+
     def __eq__(self, other):
         try:
             # Compare the values in all the slots.
@@ -51,7 +52,8 @@ class _MetaDescription(ABC):
         # with a convention shared by the classes in this module that inherit
         # from this object to gain common behavior.
         params = [
-            f'{slot}={repr(getattr(self, slot))[1:]}' for slot in self.__slots__
+            f'{slot}={repr(getattr(self, slot))[1:]}'
+            for slot in getattr(self, '__slots__')
         ]
         # Now put it all together with the class name to produce a
         # pseudo-constructor string.

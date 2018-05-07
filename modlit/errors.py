@@ -19,6 +19,7 @@ class ModlitError(Exception):
 
         :param message: the error message
         """
+        super().__init__()
         self._message = message
 
     @property

@@ -25,8 +25,8 @@ class ExampleTestSuite(unittest.TestCase):
         Act: Retrieve the versions.
         Assert: The versions match the version numbers at the time of project creation.
         """
-        self.assertEqual('0.0.2', modlit.__version__)
-        self.assertEqual('0.0.2', modlit.__release__)
+        self.assertEqual('0.0.3', modlit.__version__)
+        self.assertEqual('0.0.3', modlit.__release__)
 
 
 class ParamaterizedExampleTestSuite(unittest.TestCase):

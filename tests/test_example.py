@@ -13,20 +13,20 @@ import unittest
 import modlit
 
 
-class ExampleTestSuite(unittest.TestCase):
-    """
-    This is just an example test suite.  It will check the current project version
-    numbers against the original version numbers and will start failing as soon as
-    the current version numbers change.
-    """
-    def test_import_getVersions_originalVersions(self):
-        """
-        Arrange: Load the primary module.
-        Act: Retrieve the versions.
-        Assert: The versions match the version numbers at the time of project creation.
-        """
-        self.assertEqual('0.0.3', modlit.__version__)
-        self.assertEqual('0.0.3', modlit.__release__)
+# class ExampleTestSuite(unittest.TestCase):
+#     """
+#     This is just an example test suite.  It will check the current project version
+#     numbers against the original version numbers and will start failing as soon as
+#     the current version numbers change.
+#     """
+#     def test_import_getVersions_originalVersions(self):
+#         """
+#         Arrange: Load the primary module.
+#         Act: Retrieve the versions.
+#         Assert: The versions match the version numbers at the time of project creation.
+#         """
+#         self.assertEqual('0.0.3', modlit.__version__)
+#         self.assertEqual('0.0.3', modlit.__release__)
 
 
 class ParamaterizedExampleTestSuite(unittest.TestCase):

@@ -13,10 +13,10 @@ from sqlalchemy.engine.base import Engine
 import sqlparse
 
 
-def preload(engine: Engine, path: Path):
+def exec_sql(engine: Engine, path: Path):
     """
-    Call this function before loading the model to make sure the database is
-    set up properly.
+    Call this function to execute the SQL statements within a file against
+    your database.
 
     :param engine: the engine connected to the database
     :param path: the path to the containing your SQL statements

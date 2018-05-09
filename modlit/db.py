@@ -8,9 +8,9 @@
 
 Say something descriptive about the 'db' module.
 """
+import logging
 from pathlib import Path
 from sqlalchemy.engine.base import Engine
-from sqlalchemy.exc import ProgrammingError
 import sqlparse
 
 
@@ -23,6 +23,7 @@ def exec_sql(engine: Engine, path: Path):
     :param path: the path to the containing your SQL statements
     """
     with engine.connect() as connection:
+        logger: logging.Logger = logging.getLogger(__name__)
         for sql_stmt in sqlparse.split(path.read_text().strip()):
             # Parse the statement so that we may detect comments.
             sqlp = sqlparse.parse(sql_stmt)
@@ -33,5 +34,6 @@ def exec_sql(engine: Engine, path: Path):
                 # exception if we try to execute it by itself.
                 continue
             # We're all set.  Execute the statement.
+            logger.debug(sql_stmt)
             connection.execute(sql_stmt)
 

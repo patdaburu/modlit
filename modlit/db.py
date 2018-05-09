@@ -36,4 +36,3 @@ def exec_sql(engine: Engine, path: Path):
             # We're all set.  Execute the statement.
             logger.debug(sql_stmt)
             connection.execute(sql_stmt)
-

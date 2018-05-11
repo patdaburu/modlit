@@ -42,7 +42,8 @@ setup(
     'psycopg2-binary>=2.7.4,<3',
     'GeoAlchemy2>=0.4.2,<1',
     'SQLAlchemy>=1.2.6,<2',
-    'titlecase>=0.12.0,<1'
+    'titlecase>=0.12.0,<1',
+    'testing.postgresql>=1.3.0,<2'
   ],
   python_requires=">=3.6",
   license='MIT',

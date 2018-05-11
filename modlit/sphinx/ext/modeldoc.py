@@ -10,7 +10,10 @@ This module contains a Sphinx extension that can be used to generate specialized
 documentation for model classes.
 """
 import logging
+import os
 import uuid
+import shutil
+from pathlib import Path
 from typing import Any, cast, List, Set, Type, Union
 from sphinx.ext.autodoc import (
     ClassLevelDocumenter, AttributeDocumenter, ClassDocumenter
@@ -30,6 +33,9 @@ from ...meta import (
 
 # Apply monkeypatches.
 monkeypatch()
+
+
+_images_path = Path('_static/modlit/images/')  #: the default path to doc images
 
 
 def setup(app):
@@ -63,7 +69,7 @@ class ModelClassDocumenter(ClassDocumenter):
         # docstring.
         img_sub = str(uuid.uuid4()).replace('-', '')
         lines = [[
-            f".. |{img_sub}_tbl| image:: _static/images/table.svg",
+            f".. |{img_sub}_tbl| image:: {_images_path / 'table.svg'}",
             '    :width: 24px',
             '    :height: 24px',
             ''
@@ -73,8 +79,9 @@ class ModelClassDocumenter(ClassDocumenter):
         try:
             gtype = cast(ModelMixin, self.object).geometry_type()
             gtype_file = gtype.name.lower()
+            img_path = _images_path / f'{gtype_file}.svg'
             lines[0].extend([
-                f".. |{img_sub}_geom| image:: _static/images/{gtype_file}.svg",
+                f".. |{img_sub}_geom| image:: {img_path}",
                 '    :width: 24px',
                 '    :height: 24px',
                 ''
@@ -144,7 +151,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
             # docstring.
             img_sub = str(uuid.uuid4()).replace('-', '')
             lines = [
-                f".. |{img_sub}| image:: _static/images/column.svg",
+                f".. |{img_sub}| image:: {_images_path / 'column.svg'}",
                 '    :width: 24px',
                 '    :height: 24px',
                 '',
@@ -263,3 +270,14 @@ def no_namedtuple_attrib_docstring(app, what, name, obj, options, lines):
     if is_namedtuple_docstring:
         # We don't return, so we need to purge in-place
         del lines[:]
+
+
+def export_images(path: Path):
+    os.makedirs(str(path.resolve()), exist_ok=True)
+    if not path.is_dir():
+        raise NotADirectoryError('The path is not a directory.')
+    local_img_path = (Path(__file__).resolve()).parent / 'images'
+    for source in [f for f in local_img_path.iterdir() if f.is_file()]:
+        target = path / source
+        if not target.exists():
+            shutil.copy(str(source), str(path))

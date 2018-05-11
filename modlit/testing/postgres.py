@@ -45,5 +45,5 @@ class TempDatabase(object):
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, tb):
+    def __exit__(self, type_, value, traceback):
         self.shutdown()

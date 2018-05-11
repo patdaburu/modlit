@@ -8,6 +8,8 @@
 
 This module contains a Sphinx extension that can be used to generate specialized
 documentation for model classes.
+
+:var IMAGES_PATH: a relative path to the `modlit` documentation images
 """
 import logging
 import os
@@ -35,7 +37,7 @@ from ...meta import (
 monkeypatch()
 
 
-_images_path = Path('_static/images/modlit')  #: the default path to doc images
+IMAGES_PATH: Path = Path('_static/images/modlit')
 
 
 def setup(app):
@@ -69,7 +71,7 @@ class ModelClassDocumenter(ClassDocumenter):
         # docstring.
         img_sub = str(uuid.uuid4()).replace('-', '')
         lines = [[
-            f".. |{img_sub}_tbl| image:: {_images_path / 'table.svg'}",
+            f".. |{img_sub}_tbl| image:: {IMAGES_PATH / 'table.svg'}",
             '    :width: 24px',
             '    :height: 24px',
             ''
@@ -79,7 +81,7 @@ class ModelClassDocumenter(ClassDocumenter):
         try:
             gtype = cast(ModelMixin, self.object).geometry_type()
             gtype_file = gtype.name.lower()
-            img_path = _images_path / f'{gtype_file}.svg'
+            img_path = IMAGES_PATH / f'{gtype_file}.svg'
             lines[0].extend([
                 f".. |{img_sub}_geom| image:: {img_path}",
                 '    :width: 24px',
@@ -151,7 +153,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
             # docstring.
             img_sub = str(uuid.uuid4()).replace('-', '')
             lines = [
-                f".. |{img_sub}| image:: {_images_path / 'column.svg'}",
+                f".. |{img_sub}| image:: {IMAGES_PATH / 'column.svg'}",
                 '    :width: 24px',
                 '    :height: 24px',
                 '',
@@ -272,6 +274,7 @@ def no_namedtuple_attrib_docstring(app, what, name, obj, options, lines):
         del lines[:]
 
 
+
 def export_images(path: Path):
     """
     Extract the `modlit` documentation images to a target directory.
@@ -289,7 +292,7 @@ def export_images(path: Path):
     # We'll need a logger.
     logger: logging.Logger = logging.getLogger(__name__)
     # Go through each of the local images...
-    for source in [f for f in local_img_path.iterdir() if f.is_file()]:
+    for source in [f for f in local_img_path.iterdir() if f.is_file()]:  # pylint: disable=no-member
         # ...determine the path where we'd like to palce it.
         target = path / source.name
         # If there isn't already a file there...

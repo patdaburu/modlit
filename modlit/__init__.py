@@ -8,5 +8,5 @@
 Helpful utilities for SQLAlchemy (and GeoAlchemy) data model projects.
 """
 
-__version__ = '0.0.6'  #: the working version
-__release__ = '0.0.6'  #: the release version
+__version__ = '0.0.7'  #: the working version
+__release__ = '0.0.7'  #: the release version

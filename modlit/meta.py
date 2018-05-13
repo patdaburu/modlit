@@ -12,7 +12,7 @@ model.
 from abc import ABC
 from enum import IntFlag
 from functools import reduce
-from typing import Any, NamedTuple, Type, Union
+from typing import Any, Type, Union
 from typing import cast, Iterable
 from sqlalchemy import Column
 
@@ -69,14 +69,28 @@ class Requirement(IntFlag):
     REQUIRED = 3  #: data for the column is required
 
 
-class Source(NamedTuple):
+class Source(_MetaDescription):
     """
     'Source' information defines contracts with data providers.
-
-    :ivar requirement:  defines the source data contract
-    :vartype requirement: :py:class:`Requirement`
     """
-    requirement: Requirement = Requirement.NONE
+    __slots__ = ['_requirement']
+
+    def __init__(self,
+                 requirement: Requirement = Requirement.NONE):
+        """
+
+        :param requirement: the source contract
+        """
+        self._requirement: Requirement = requirement
+
+    @property
+    def requirement(self) -> Requirement:
+        """
+        Get the source data contract.
+
+        :return: the source data contract
+        """
+        return self._requirement
 
 
 class Usage(IntFlag):
@@ -143,14 +157,27 @@ class Target(_MetaDescription):
         return self._usage
 
 
-class TableMeta(NamedTuple):
+class TableMeta(_MetaDescription):
     """
     Metadata for tables.
-
-    :ivar label: a human-friendly label for the column
-    :vartype label: `str`
     """
-    label: str = None  #: a human-friendly label for the column
+    __slots__ = ['_label']
+
+    def __init__(self, label: str = None):
+        """
+
+        :param label: the human-friendly label for the column
+        """
+        self._label = label
+
+    @property
+    def label(self) -> str:
+        """
+        Get the human-friendly label for the column.
+
+        :return: the human-friendly label
+        """
+        return self._label
 
 
 class ColumnMeta(_MetaDescription):

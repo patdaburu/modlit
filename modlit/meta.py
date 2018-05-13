@@ -222,7 +222,7 @@ class TableMeta(_MetaDescription):
     """
     Metadata for tables.
     """
-    __slots__ = ['_label', '_synonyms', '_synonyms_re']
+    __slots__ = ['_label', '_synonyms']
 
     def __init__(self,
                  label: str = None,
@@ -232,15 +232,7 @@ class TableMeta(_MetaDescription):
         :param label: the human-friendly label for the column
         """
         self._label = label
-        self._synonyms: OrderedSet[str] = (
-            OrderedSet(synonyms) if synonyms is not None
-            else set()
-        )
-        # Create a set of regular-expression objects we can use to determine
-        # if a given string is a synonym for this source column's name.
-        self._synonyms_re: OrderedSet = OrderedSet(
-            [re.compile(s, re.IGNORECASE) for s in self._synonyms]
-        )
+        self._synonyms = _Synonyms(synonyms)
 
     @property
     def label(self) -> str:

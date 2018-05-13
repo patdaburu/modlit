@@ -10,12 +10,12 @@ This module contains metadata objects to help with inline documentation of the
 model.
 """
 from abc import ABC
-from orderedset import OrderedSet
 from enum import IntFlag
 import re
 from functools import reduce
 from typing import Any, Type, Union
-from typing import cast, Iterable, List
+from typing import cast, Iterable
+from orderedset import OrderedSet
 from sqlalchemy import Column
 
 

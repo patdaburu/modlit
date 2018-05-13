@@ -3,6 +3,11 @@
 .. toctree::
     :glob:
 
+.. image:: _static/images/logo.svg
+   :width: 80px
+   :alt: modlit
+   :align: right
+
 API Documentation
 =================
 

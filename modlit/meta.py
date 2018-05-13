@@ -10,10 +10,12 @@ This module contains metadata objects to help with inline documentation of the
 model.
 """
 from abc import ABC
+from orderedset import OrderedSet
 from enum import IntFlag
+import re
 from functools import reduce
 from typing import Any, Type, Union
-from typing import cast, Iterable
+from typing import cast, Iterable, List
 from sqlalchemy import Column
 
 
@@ -73,15 +75,26 @@ class Source(_MetaDescription):
     """
     'Source' information defines contracts with data providers.
     """
-    __slots__ = ['_requirement']
+    __slots__ = ['_requirement', '_synonyms', '_synonyms_re']
 
     def __init__(self,
-                 requirement: Requirement = Requirement.NONE):
+                 requirement: Requirement = Requirement.NONE,
+                 synonyms: Iterable[str] = None):
         """
 
         :param requirement: the source contract
+        :param synonyms: name patterns that may indicate
         """
         self._requirement: Requirement = requirement
+        self._synonyms: OrderedSet[str] = (
+            OrderedSet(synonyms) if synonyms is not None
+            else set()
+        )
+        # Create a set of regular-expression objects we can use to determine
+        # if a given string is a synonym for this source column's name.
+        self._synonyms_re: OrderedSet = OrderedSet(
+            [re.compile(s, re.IGNORECASE) for s in self._synonyms]
+        )
 
     @property
     def requirement(self) -> Requirement:
@@ -91,6 +104,22 @@ class Source(_MetaDescription):
         :return: the source data contract
         """
         return self._requirement
+
+    def is_synonym(self, name: str):
+        """
+        Is a given name a synonym for this source column?
+
+        :param name: the name to test
+        :return: `True` if the name appears to be a synonym, otherwise `False`
+        """
+        # Evaluate each of the synonym regular expressions.
+        for synonym_re in self._synonyms_re:
+            # If we find that this one matches the name...
+            if synonym_re.match(name):
+                # ...the name is a synonym.
+                return True
+        # If we didn't return before it means we didn't find any matches, so...
+        return False
 
 
 class Usage(IntFlag):

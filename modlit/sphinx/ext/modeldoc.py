@@ -8,9 +8,14 @@
 
 This module contains a Sphinx extension that can be used to generate specialized
 documentation for model classes.
+
+:var IMAGES_PATH: a relative path to the `modlit` documentation images
 """
 import logging
+import os
 import uuid
+import shutil
+from pathlib import Path
 from typing import Any, cast, List, Set, Type, Union
 from sphinx.ext.autodoc import (
     ClassLevelDocumenter, AttributeDocumenter, ClassDocumenter
@@ -30,6 +35,9 @@ from ...meta import (
 
 # Apply monkeypatches.
 monkeypatch()
+
+
+IMAGES_PATH: Path = Path('_static/images/modlit')
 
 
 def setup(app):
@@ -63,7 +71,7 @@ class ModelClassDocumenter(ClassDocumenter):
         # docstring.
         img_sub = str(uuid.uuid4()).replace('-', '')
         lines = [[
-            f".. |{img_sub}_tbl| image:: _static/images/table.svg",
+            f".. |{img_sub}_tbl| image:: {IMAGES_PATH / 'table.svg'}",
             '    :width: 24px',
             '    :height: 24px',
             ''
@@ -73,8 +81,9 @@ class ModelClassDocumenter(ClassDocumenter):
         try:
             gtype = cast(ModelMixin, self.object).geometry_type()
             gtype_file = gtype.name.lower()
+            img_path = IMAGES_PATH / f'{gtype_file}.svg'
             lines[0].extend([
-                f".. |{img_sub}_geom| image:: _static/images/{gtype_file}.svg",
+                f".. |{img_sub}_geom| image:: {img_path}",
                 '    :width: 24px',
                 '    :height: 24px',
                 ''
@@ -144,7 +153,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
             # docstring.
             img_sub = str(uuid.uuid4()).replace('-', '')
             lines = [
-                f".. |{img_sub}| image:: _static/images/column.svg",
+                f".. |{img_sub}| image:: {IMAGES_PATH / 'column.svg'}",
                 '    :width: 24px',
                 '    :height: 24px',
                 '',
@@ -263,3 +272,32 @@ def no_namedtuple_attrib_docstring(app, what, name, obj, options, lines):
     if is_namedtuple_docstring:
         # We don't return, so we need to purge in-place
         del lines[:]
+
+
+
+def export_images(path: Path):
+    """
+    Extract the `modlit` documentation images to a target directory.
+
+    :param path: the path to the target directory
+    """
+    # Create the target directory (if it doesn't exist).
+    os.makedirs(str(path.resolve()), exist_ok=True)
+    # If the target directory path isn't a directory...
+    if not path.is_dir():
+        # ...well, that's going to be a problem.
+        raise NotADirectoryError('The path is not a directory.')
+    # Determine the local image path.
+    local_img_path = (Path(__file__).resolve()).parent / 'images'
+    # We'll need a logger.
+    logger: logging.Logger = logging.getLogger(__name__)
+    # Go through each of the local images...
+    for source in [f for f in local_img_path.iterdir() if f.is_file()]:  # pylint: disable=no-member
+        # ...determine the path where we'd like to palce it.
+        target = path / source.name
+        # If there isn't already a file there...
+        if not target.exists():
+            # ...copy it on over.
+            logger.info(f'Copying doc images file {str(source)} to'
+                        f' {str(target)}.')
+            shutil.copy(str(source), str(path))

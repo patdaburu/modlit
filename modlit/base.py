@@ -49,7 +49,7 @@ class ModelMixin(object):
             return GeometryTypes.NONE
 
 
-class AutoIdMixin(object):
+class AutoGuidMixin(object):
     """
     This mixin includes an `id` column.
     """
@@ -62,6 +62,6 @@ class AutoIdMixin(object):
                 calculated=True
             )
         ),
-        default=uuid.uuid4(),
+        default=lambda: uuid.uuid4(),  # pylint: disable=unnecessary-lambda
         primary_key=True
     )

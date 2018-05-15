@@ -285,6 +285,14 @@ class TestColumnMetaSuite(unittest.TestCase):
                           source=source, target=target)
         # Assert.
         self.assertEqual(expected, meta)
+        # To complete coverage...
+        self.assertEqual(label, expected.label)
+        _ = expected.description
+        self.assertEqual(nena, expected.nena)
+        self.assertEqual(source, expected.source)
+        self.assertEqual(target, expected.target)
+        self.assertEqual(source.requirement, expected.get_enum(Requirement))
+        self.assertEqual(target.usage, expected.get_enum(Usage))
 
 
 class TestTableMetaSuite(unittest.TestCase):
@@ -311,11 +319,16 @@ class TestTableMetaSuite(unittest.TestCase):
         :type label: `str`
         :param synonyms: synonyms
         :type synonyms: Iterable[str]
+        :param expected: a table-meta object equal to the one constructed from
+            the supplied arguments
+        :type expected: :py:class:`TableMeta`
         """
         # Arrange/Act.
         meta = TableMeta(label=label, synonyms=synonyms)
         # Assert.
         self.assertEqual(expected, meta)
+        # To complete coverage...
+        self.assertEqual(label, expected.label)
 
 
 if __name__ == '__main__':

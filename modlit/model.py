@@ -9,7 +9,7 @@
 This module contains general members to help you work with the model.
 """
 import inspect
-from typing import List
+from typing import Dict, List
 from .meta import Column, COLUMN_META_ATTR, TableMeta, TABLE_META_ATTR
 from .modules import walk_load
 
@@ -73,3 +73,25 @@ def load(package, skip_modules: List[str] = None):
         when importing the package
     """
     walk_load(package, skip_modules=skip_modules)
+
+
+class ModelMap(object):
+    """
+    A model map describes a set off alternate names that may be used to refer
+    to a modeled object.
+    """
+    def __init__(self,
+                 base_cls: type,
+                 alt_tablename: str,
+                 alt_columns: Dict[str, str]):
+        """
+
+        :param base_cls: the ORM model class
+        :param alt_tablename: the alternate table name
+        :param alt_columns: a dictionary of alternate column names
+        """
+        self._base_cls: type = base_cls
+        self._alt_tablename: str = alt_tablename
+        self._alt_columns: Dict[str, str] = (
+            alt_columns if alt_columns is not None else {}
+        )

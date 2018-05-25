@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Created by pat on 5/8/18
+# Created by pat on 5/25/18
 """
-.. currentmodule:: modlit.db
+.. currentmodule:: sqlalchemy
 .. moduleauthor:: Pat Daburu <pat@daburu.net>
 
-Say something descriptive about the 'db' module.
+This module contains helper functions that use SQLAlchemy conventions to work
+with your database.
 """
 import logging
 from pathlib import Path
@@ -14,7 +15,7 @@ from sqlalchemy.engine.base import Engine
 import sqlparse
 
 
-def exec_sql(engine: Engine, path: Path):
+def exec_file(engine: Engine, path: Path):
     """
     Call this function to execute the SQL statements within a file against
     your database.

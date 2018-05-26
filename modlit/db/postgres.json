@@ -1,0 +1,13 @@
+{
+  "sql": {
+    "create_db": "CREATE DATABASE {0}",
+    "create_extensions": [
+      "CREATE EXTENSION IF NOT EXISTS postgis"
+    ],
+    "create_schema": "CREATE SCHEMA IF NOT EXISTS {0}",
+    "drop_schema":  "DROP SCHEMA {0} CASCADE",
+    "select_db_count": "SELECT COUNT(datname) from pg_database WHERE datname='{0}'",
+    "select_schema_count": "SELECT COUNT(schema_name) FROM information_schema.schemata WHERE schema_name = '{0}'",
+    "select_schema_tables": "SELECT table_name FROM information_schema.tables WHERE table_schema = '{0}' AND table_type='BASE TABLE'"
+  }
+}

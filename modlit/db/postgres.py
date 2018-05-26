@@ -15,6 +15,9 @@ from addict import Dict
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
+
+DEFAULT_ADMIN_DB = 'postgres'  #: the default administrative database name
+
 # Load the Postgres phrasebook.
 # pylint: disable=invalid-name
 # pylint: disable=no-member
@@ -60,19 +63,73 @@ def connect(url: str, dbname: str = None, autocommit: bool = False):
     return cnx
 
 
+def db_exists(url: str,
+              dbname: str = None,
+              admindb: str = DEFAULT_ADMIN_DB) -> bool:
+    """
+    Does a given database on a Postgres instance exist?
+
+    :param url: the Postgres instance URL
+    :param dbname: the name of the database to test
+    :param admindb: the name of an existing (presumably the main) database
+    :return: `True` if the database exists, otherwise `False`
+    """
+    # Let's see what we got for the database name.
+    _dbname = dbname
+    # If the caller didn't specify a database name...
+    if not _dbname:
+        # ...let's figure it out from the URL.
+        db: ParseResult = urlparse(url)
+        _dbname = db.path[1:]
+    # Now, let's do this!
+    with connect(url=url, dbname=admindb) as cnx:
+        with cnx.cursor() as crs:
+            # Execute the SQL query that counts the databases with a specified
+            # name.
+            crs.execute(
+                sql_phrasebook.select_db_count.format(_dbname)
+            )
+            # If the count isn't zero (0) the database exists.
+            return crs.fetchone()[0] != 0
+
+
 def create_db(
         url: str,
         dbname: str,
-        admindb: str = 'postgres'):
+        admindb: str = DEFAULT_ADMIN_DB):
     """
     Create a database on a Postgres instance.
 
     :param url: the Postgres instance URL
     :param dbname: the name of the database
     :param admindb: the name of an existing (presumably the main) database
-    :return:
     """
     with connect(url=url, dbname=admindb) as cnx:
         cnx.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         with cnx.cursor() as crs:
             crs.execute(sql_phrasebook.create_db.format(dbname))
+
+
+def touch_db(
+        url: str,
+        dbname: str = None,
+        admindb: str = DEFAULT_ADMIN_DB):
+    """
+    Create a database if it does not already exist.
+
+    :param url: the Postgres instance URL
+    :param dbname: the name of the database
+    :param admindb: the name of an existing (presumably the main) database
+    """
+    # If the database already exists, we don't need to do anything further.
+    if db_exists(url=url, dbname=dbname, admindb=admindb):
+        return
+    # Let's see what we got for the database name.
+    _dbname = dbname
+    # If the caller didn't specify a database name...
+    if not _dbname:
+        # ...let's figure it out from the URL.
+        db: ParseResult = urlparse(url)
+        _dbname = db.path[1:]
+    # Now we can create it.
+    create_db(url=url, dbname=_dbname, admindb=admindb)

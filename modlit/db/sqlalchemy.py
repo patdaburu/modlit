@@ -15,7 +15,7 @@ from sqlalchemy.engine.base import Engine
 import sqlparse
 
 
-def exec_file(engine: Engine, path: Path):
+def exec_sql(engine: Engine, path: Path):
     """
     Call this function to execute the SQL statements within a file against
     your database.

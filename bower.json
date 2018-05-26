@@ -1,9 +1,0 @@
-{
-  "name": "modlit",
-  "authors": ["Pat Daburu <pat@daburu.net>"],
-  "description": "Helpful utilities for SQLAlchemy (and GeoAlchemy) data model projects.",
-  "main": "index.js",
-  "license": "MIT",
-  "homepage": "",
-  "ignore": ["**/.*", "node_modules", "bower_components", "test", "tests"]
-}

@@ -17,6 +17,7 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 
 DEFAULT_ADMIN_DB = 'postgres'  #: the default administrative database name
+DEFAULT_PG_PORT = 5432  #: the default PostgreSQL listener port
 
 # Load the Postgres phrasebook.
 # pylint: disable=invalid-name
@@ -49,7 +50,7 @@ def connect(url: str, dbname: str = None, autocommit: bool = False):
         k: v for k, v in
         {
             'host': dbp.hostname,
-            'port': int(dbp.port),
+            'port': int(dbp.port) if dbp.port is not None else DEFAULT_PG_PORT,
             'database': dbname if dbname is not None else dbp.path[1:],
             'user': dbp.username,
             'password': dbp.password

@@ -61,4 +61,3 @@ class ModelMap(object):
         """
         key = column.name if isinstance(column, Column) else str(column)
         return self._alt_columns[key]
-

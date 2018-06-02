@@ -14,8 +14,8 @@ from urllib.parse import urlparse, ParseResult
 from addict import Dict
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from ..meta import ColumnMeta, TableMeta, get_column_meta, get_table_meta
-from ..transform import ModelMap
+#from ..meta import ColumnMeta, TableMeta, get_column_meta, get_table_meta
+#from ..transform import ModelMap
 
 
 DEFAULT_ADMIN_DB = 'postgres'  #: the default administrative database name
@@ -149,12 +149,16 @@ class AutoModelMapper(object):
         # Go ahead and connect to the database.
         self._cnx = connect(url=url)
 
-    def get_candidate_tables(self, model):
-        table_meta = get_table_meta(model)
+    # def get_candidate_tables(self, model):
+    #     """
+    #
+    #     :param model:
+    #     :return:
+    #     """
+    #     table_meta = get_table_meta(model)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._cnx.close()
-

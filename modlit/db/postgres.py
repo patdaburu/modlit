@@ -14,6 +14,8 @@ from urllib.parse import urlparse, ParseResult
 from addict import Dict
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from ..meta import ColumnMeta, TableMeta, get_column_meta, get_table_meta
+from ..transform import ModelMap
 
 
 DEFAULT_ADMIN_DB = 'postgres'  #: the default administrative database name
@@ -134,3 +136,25 @@ def touch_db(
         _dbname = db.path[1:]
     # Now we can create it.
     create_db(url=url, dbname=_dbname, admindb=admindb)
+
+
+class AutoModelMapper(object):
+    """
+    Use an automatic model mapper to find candidate mappings for tables in
+    your PostgreSQL database.
+    """
+    def __init__(self, url: str):
+        # Hang on to the database URL.
+        self._url = url
+        # Go ahead and connect to the database.
+        self._cnx = connect(url=url)
+
+    def get_candidate_tables(self, model):
+        table_meta = get_table_meta(model)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._cnx.close()
+

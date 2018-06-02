@@ -135,8 +135,8 @@ class TestSourceSuite(unittest.TestCase):
         )
     ])
     def test_init_isSynonym_assertFalse(self,
-                                       source,
-                                       synonyms):
+                                        source,
+                                        synonyms):
         """
         Arrange: We need a source and non-synonyms for the source.
         Act: Test candidate synonyms using is_synonym().

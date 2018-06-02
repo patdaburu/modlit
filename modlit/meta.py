@@ -130,7 +130,7 @@ class Source(_MetaDescription):
         """
 
         :param requirement: the source contract
-        :param synonyms: name patterns that may indicate
+        :param synonyms: name patterns that may be used to detect this source
         """
         self._requirement: Requirement = requirement
         self._synonyms = _Synonyms(synonyms)
@@ -243,6 +243,16 @@ class TableMeta(_MetaDescription):
         """
         return self._label
 
+    def is_synonym(self, name: str) -> bool:
+        """
+        Test a name to see if it's a synonym for the table's name.
+
+        :param name: the table name
+        :return: `True` if the name is a synonym for this table, otherwise
+            `False`
+        """
+        return self._synonyms.is_synonym(name)
+
 
 class ColumnMeta(_MetaDescription):
     """
@@ -335,3 +345,31 @@ def column(dtype: Any, meta: ColumnMeta, *args, **kwargs) -> Column:
     col = Column(dtype, *args, **kwargs)
     col.__dict__[COLUMN_META_ATTR] = meta
     return col
+
+
+def get_table_meta(model) -> TableMeta or None:
+    """
+    Retrieve the table metadata for from a model (ORM) object.
+
+    :param model: the model (ORM) object
+    :return: the table metadata
+    """
+    try:
+        meta = getattr(model, TABLE_META_ATTR)
+        return meta if isinstance(meta, TableMeta) else None
+    except AttributeError:
+        return None
+
+
+def get_column_meta(col: Column) -> ColumnMeta or None:
+    """
+    Retrieve the column metadata from a column.
+
+    :param col: the column
+    :return: the column metadata
+    """
+    try:
+        meta = getattr(col, COLUMN_META_ATTR)
+        return meta if isinstance(meta, ColumnMeta) else None
+    except AttributeError:
+        return None

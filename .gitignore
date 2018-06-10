@@ -104,3 +104,6 @@ ENV/
 
 # JetBrains
 .idea
+
+# Scratch Files
+scratch*

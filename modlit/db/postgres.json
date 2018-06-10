@@ -6,8 +6,11 @@
     ],
     "create_schema": "CREATE SCHEMA IF NOT EXISTS {0}",
     "drop_schema":  "DROP SCHEMA {0} CASCADE",
+    "select_columns": "SELECT column_name, data_type from information_schema.columns WHERE table_schema='{0}' AND table_name='{1}'",
     "select_db_count": "SELECT COUNT(datname) from pg_database WHERE datname='{0}'",
     "select_schema_count": "SELECT COUNT(schema_name) FROM information_schema.schemata WHERE schema_name = '{0}'",
-    "select_schema_tables": "SELECT table_name FROM information_schema.tables WHERE table_schema = '{0}' AND table_type='BASE TABLE'"
+    "select_schema_tables": "SELECT table_name FROM information_schema.tables WHERE table_schema = '{0}' AND table_type='BASE TABLE'",
+    "select_tables": "SELECT table_schema, table_name from information_schema.tables WHERE table_type='BASE TABLE'",
+    "select_tables_in_schema": "SELECT table_schema, table_name from information_schema.tables WHERE table_type='BASE TABLE' AND table_schema='{0}'"
   }
 }

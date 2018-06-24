@@ -17,6 +17,7 @@ class ColumnInfo(NamedTuple):
     """
     column_name: str  #: the name of the column
     orm_type: type  #: the SQLAlchemy-compatible data type
+    sql_type: str  #: the SQL type as stated by the database
 
 
 class TableInfo(NamedTuple):

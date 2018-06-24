@@ -148,7 +148,7 @@ def touch_db(
     create_db(url=url, dbname=_dbname, admindb=admindb)
 
 
-def get_tables(url: str, schema: str = None) -> Iterable[TableInfo]:
+def describe_tables(url: str, schema: str = None) -> Iterable[TableInfo]:
     """
     Get information about tables in the database.
 
@@ -183,7 +183,6 @@ def get_tables(url: str, schema: str = None) -> Iterable[TableInfo]:
                     column_name = col_rec['column_name']
                     # ...and data type as reported by the database.
                     data_type = col_rec['data_type']
-                    print(data_type)
                     # Retrieve the ORM type that matches the reported data
                     # type.  (If we don't have a matching, we'll use a default.)
                     orm_type = (
@@ -193,7 +192,8 @@ def get_tables(url: str, schema: str = None) -> Iterable[TableInfo]:
                     )
                     cols.append(
                         ColumnInfo(column_name=column_name,
-                                   orm_type=orm_type)
+                                   orm_type=orm_type,
+                                   sql_type=data_type)
                     )
             # Now that we have all the columns, we can yield the table info
             # to the caller.

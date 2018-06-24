@@ -294,7 +294,7 @@ def describe_tables(url: str, schema: str = None) -> Iterable[TableInfo]:
                                 orm_type=orm_type,
                                 sql_type=data_type,
                                 coord_dimension=geom_col.coord_dimension,
-                                geometry_type=geom_col.coord_dimension,
+                                geometry_type=geom_col.type,
                                 srid=geom_col.srid
                             )
                         )

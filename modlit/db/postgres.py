@@ -11,15 +11,16 @@ This module contains utilities for working directly with PostgreSQL.
 import json
 from pathlib import Path
 from urllib.parse import urlparse, ParseResult
-from typing import Iterable, List
-from addict import Dict
+from typing import Dict, Iterable, List, NamedTuple, Tuple
+from addict import Dict as Addict
+import geoalchemy2
 import psycopg2
 from psycopg2.extras import DictCursor
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import sqlalchemy.types
 #from ..meta import ColumnMeta, TableMeta, get_column_meta, get_table_meta
 #from ..transform import ModelMap
-from .db import ColumnInfo, TableInfo
+from .db import ColumnInfo, GeometryColumnInfo, TableInfo
 
 
 DEFAULT_ADMIN_DB = 'postgres'  #: the default administrative database name
@@ -28,7 +29,7 @@ DEFAULT_PG_PORT = 5432  #: the default PostgreSQL listener port
 # Load the Postgres phrasebook.
 # pylint: disable=invalid-name
 # pylint: disable=no-member
-_sql_phrasebook = Dict(
+_sql_phrasebook = Addict(
     json.loads(
         (
             Path(__file__).resolve().parent / 'postgres.json'
@@ -41,6 +42,97 @@ _pg2orm_data_types = {
     'double precision': sqlalchemy.types.Float,
     'character varying': sqlalchemy.types.String
 }  #: a mapping of Postgres data type names to SQLAlchemy data types
+
+
+class _GeometryColumns(object):
+    """
+    This is an object to contain the contents of the PostGIS
+    `public.geometry_columns` table.
+    """
+    __slots__ = ['_rows']
+
+    class Row(NamedTuple):
+        """
+        This is a named tuple to contain the information found in the PostGIS
+        `public.geometry_columns` table.
+        """
+        schema: str  #: the name of the schema that contains the table
+        table_name: str  #: the name of the table that contains the column
+        column_name: str  #: the name of the geometry column
+        coord_dimension: int  #: the dimensions of the geometry
+        srid: int  #: the spatial reference ID (SRID) of the geometry
+        type: str  #: the string that identifies the GeoAlchemy2 type
+
+    def __init__(self):
+        self._rows: Dict[Tuple[str, str], _GeometryColumns.Row] = {}
+
+    def add(self, row: '_GeometryColumns.Row'):
+        """
+        Add a row to the collection.
+
+        :param row: the row object
+        :return:
+        """
+        key = self._key(row.schema, row.table_name)
+        self._rows[key] = row
+
+    def get(self,
+            schema: str,
+            table_name: str,
+            column_name: str = None) -> '_GeometryColumns.Row' or None:
+        """
+        Retrieve a row from the collection.
+
+        :param schema: the table schema
+        :param table_name: the table name
+        :param column_name: the column name
+        :return: the geometry columns row that meets the criteria or `None` if
+            no such row is present in the collection
+        """
+        # Figure out what the key is.
+        key = self._key(schema, table_name)
+        try:
+            # Get the row that corresponds to the key.
+            row = self._rows[key]
+            # If the caller further specified the column name...
+            if column_name:
+                # ...we should only return the row if it matches the column
+                # name.
+                return (
+                    row if row.column_name.lower() == column_name.lower()
+                    else None
+                )
+            # Otherwise, just return the row.
+            return row
+        except KeyError:
+            return None
+
+    @staticmethod
+    def _key(schema: str, table_name: str) -> Tuple[str, str]:
+        return schema.lower(), table_name.lower()
+
+    @staticmethod
+    def fetch(cnx) -> '_GeometryColumns':
+        """
+        Fetch the geometry columns on an open connection.
+
+        :param cnx: an open connection to the database.
+        """
+        sql = _sql_phrasebook.select_geometry_columns
+        gcs = _GeometryColumns()
+        with cnx.cursor(cursor_factory=DictCursor) as crs:
+            crs.execute(sql)
+            for row in crs:
+                gcrow = _GeometryColumns.Row(
+                    schema=row['schema'],
+                    table_name=row['table_name'],
+                    column_name=row['column_name'],
+                    coord_dimension=row['coord_dimension'],
+                    srid=row['srid'],
+                    type=row['type']
+                )
+                gcs.add(gcrow)
+        return gcs
 
 
 def connect(url: str, dbname: str = None, autocommit: bool = False):
@@ -166,6 +258,9 @@ def describe_tables(url: str, schema: str = None) -> Iterable[TableInfo]:
     # Connect to the database.
     with connect(url=url) as cnx, \
             cnx.cursor(cursor_factory=DictCursor) as tbl_crs:
+        # We're going to need information about the geometry columns so that
+        # we can identify them.
+        geom_cols: _GeometryColumns = _GeometryColumns.fetch(cnx)
         tbl_crs.execute(tbl_sql)
         # Now let's go through the tables.
         for rec in tbl_crs:
@@ -183,18 +278,40 @@ def describe_tables(url: str, schema: str = None) -> Iterable[TableInfo]:
                     column_name = col_rec['column_name']
                     # ...and data type as reported by the database.
                     data_type = col_rec['data_type']
-                    # Retrieve the ORM type that matches the reported data
-                    # type.  (If we don't have a matching, we'll use a default.)
-                    orm_type = (
-                        _pg2orm_data_types[data_type]
-                        if data_type in _pg2orm_data_types
-                        else sqlalchemy.types.MatchType
-                    )
-                    cols.append(
-                        ColumnInfo(column_name=column_name,
-                                   orm_type=orm_type,
-                                   sql_type=data_type)
-                    )
+                    # Now take a gamble on the possibility that this is actually
+                    # the geometry column.  (If it isn't, geom_col will just
+                    # come back as None.)
+                    geom_col: _GeometryColumns.Row = geom_cols.get(
+                        schema=schema,
+                        table_name=table_name,
+                        column_name=column_name)
+                    # If this appears to be the geometry column for the table...
+                    if geom_col:
+                        orm_type = geoalchemy2.types.Geometry
+                        cols.append(
+                            GeometryColumnInfo(
+                                column_name=column_name,
+                                orm_type=orm_type,
+                                sql_type=data_type,
+                                coord_dimension=geom_col.coord_dimension,
+                                geometry_type=geom_col.coord_dimension,
+                                srid=geom_col.srid
+                            )
+                        )
+                    else:
+                        # Retrieve the ORM type that matches the reported data
+                        # type.  (If we don't have a matching, we'll use a
+                        # default.)
+                        orm_type = (
+                            _pg2orm_data_types[data_type]
+                            if data_type in _pg2orm_data_types
+                            else sqlalchemy.types.MatchType
+                        )
+                        cols.append(
+                            ColumnInfo(column_name=column_name,
+                                       orm_type=orm_type,
+                                       sql_type=data_type)
+                        )
             # Now that we have all the columns, we can yield the table info
             # to the caller.
             yield TableInfo(

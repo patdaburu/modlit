@@ -144,9 +144,7 @@ class TableInfo(object):
     """
     This is a named tuple that describes a table in a database.
     """
-    # schema: str  #: the schema in which the table resides
-    # table_name: str  #: the name of the table
-    # columns: Iterable[ColumnInfo]  #: the columns in the table
+    # FUTURE: This would probably be a great use of dataclasses in 3.7!!
 
     __slots__ = [
         '_schema', '_table_name', '_columns', '_geometry_column',

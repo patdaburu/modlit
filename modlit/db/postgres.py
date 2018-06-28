@@ -317,7 +317,7 @@ def describe_tables(url: str, schema: str = None) -> Iterable[TableInfo]:
             yield TableInfo(
                 table_name=table_name,
                 schema=schema,
-                columns=cols
+                columns=frozenset(cols)
             )
 
 

@@ -38,9 +38,11 @@ _sql_phrasebook = Addict(
 )
 
 _pg2orm_data_types = {
-    'integer': sqlalchemy.types.Integer,
+    'boolean': sqlalchemy.types.Boolean,
+    'character varying': sqlalchemy.types.String,
     'double precision': sqlalchemy.types.Float,
-    'character varying': sqlalchemy.types.String
+    'integer': sqlalchemy.types.Integer,
+    'text': sqlalchemy.types.String
 }  #: a mapping of Postgres data type names to SQLAlchemy data types
 
 

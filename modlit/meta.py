@@ -13,8 +13,7 @@ from abc import ABC
 from enum import IntFlag
 import re
 from functools import reduce
-from typing import cast, Any, Type, Union
-from typing import cast, Iterable
+from typing import cast, Any, Iterable, Type, Union
 from orderedset import OrderedSet
 from sqlalchemy import Column
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -385,7 +384,5 @@ def has_column_meta(obj: object) -> bool:
     :return: `True` if the object is a :py:class:`Column` or a
         :py:class:`sqlalchemy.orm.InstrumentedAttribute` with attached column metadata.
     """
-    return (
-            isinstance(obj, (Column, InstrumentedAttribute)) and
+    return (isinstance(obj, (Column, InstrumentedAttribute)) and
             hasattr(obj, COLUMN_META_ATTR))
-

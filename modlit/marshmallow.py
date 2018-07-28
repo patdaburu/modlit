@@ -11,12 +11,12 @@ serialization.
 """
 import inspect
 from typing import cast, Type
-from marshmallow import Schema, fields, pprint, post_load, ValidationError, validates
+from marshmallow import Schema, fields #, pprint, post_load, ValidationError, validates
 from sqlalchemy.orm.attributes import InstrumentedAttribute
-import sqlalchemy.types
+#import sqlalchemy.types
 import sqlalchemy.sql.sqltypes
 from .types import GUID
-from .meta import has_column_meta, get_column_meta
+from .meta import has_column_meta #, get_column_meta
 
 
 MARSHMALLOW_SCHEMA_ATTR = '__marshmallow_schema__'
@@ -54,7 +54,7 @@ SQA_TYPES = {
 }  #: a mapping of SqlAlchemy types to marshmallow field type constructors.
 
 
-def schema(cls: Type, name: str=None, cache: bool=True) -> Schema:
+def schema(cls: Type, name: str = None, cache: bool = True) -> Schema:
     """
     Generate a
     `Marshmallow schema <https://marshmallow.readthedocs.io/en/3.0/api_reference.html#schema>`_
@@ -86,16 +86,16 @@ def schema(cls: Type, name: str=None, cache: bool=True) -> Schema:
     # We think this is a SQLAlchemy class.  Moreover, we expect it's a modlit model.
     # So, we're interested in attributes that appear to be SQLAlchemy `InstrumentedAttribute`
     # instances that also have column metadata attached.
-    for name, sqa_attr in [
-        member for member in inspect.getmembers(cls)
-        if isinstance(member[1], InstrumentedAttribute)
-        and has_column_meta(member[1])
+    for attr_name, sqa_attr in [
+            member for member in inspect.getmembers(cls)
+            if isinstance(member[1], InstrumentedAttribute)
+            and has_column_meta(member[1])
     ]:
-        col_meta = get_column_meta(sqa_attr)
+#        col_meta = get_column_meta(sqa_attr)
         sqa_type = sqa_attr.property.columns[0].type
         try:
             mm_type = SQA_TYPES[type(sqa_type)]
-            attrs[name] = mm_type()
+            attrs[attr_name] = mm_type()
         except KeyError:
             print(f'***********DID NOT FIND A MM TYPE FOR {sqa_type}')  #: TODO: Logging!!!!
 

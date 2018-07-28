@@ -46,7 +46,6 @@ def setup(app):
 
     :param app: the Sphinx environment.
     """
-    # type: (Sphinx) -> Dict[unicode, Any]
     app.add_autodocumenter(ModelClassDocumenter)
     app.add_autodocumenter(ColumnAttributeDocumenter)
     app.connect('autodoc-process-docstring', no_namedtuple_attrib_docstring)

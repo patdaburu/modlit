@@ -13,10 +13,11 @@ from abc import ABC
 from enum import IntFlag
 import re
 from functools import reduce
-from typing import Any, Type, Union
+from typing import cast, Any, Type, Union
 from typing import cast, Iterable
 from orderedset import OrderedSet
 from sqlalchemy import Column
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 
 COLUMN_META_ATTR = '__meta__'  #: the property that contains column metadata
@@ -363,7 +364,8 @@ def get_table_meta(model) -> TableMeta or None:
 
 def get_column_meta(col: Column) -> ColumnMeta or None:
     """
-    Retrieve the column metadata from a column.
+    Retrieve the column metadata from a column.  If there is no column metadata, the function
+    return `None`.
 
     :param col: the column
     :return: the column metadata
@@ -373,3 +375,17 @@ def get_column_meta(col: Column) -> ColumnMeta or None:
         return meta if isinstance(meta, ColumnMeta) else None
     except AttributeError:
         return None
+
+
+def has_column_meta(obj: object) -> bool:
+    """
+    Test an object to see if it has an attached :py:class:`ColumnMeta` object.
+
+    :param obj: the object
+    :return: `True` if the object is a :py:class:`Column` or a
+        :py:class:`sqlalchemy.orm.InstrumentedAttribute` with attached column metadata.
+    """
+    return (
+            isinstance(obj, (Column, InstrumentedAttribute)) and
+            hasattr(obj, COLUMN_META_ATTR))
+

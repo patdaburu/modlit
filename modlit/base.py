@@ -12,6 +12,7 @@ along with some other helpful classes.
 import uuid
 from sqlalchemy.ext.declarative import declarative_base
 from .geometry import GeometryTypes
+from . import marshmallow
 from .meta import column, ColumnMeta, Target
 from .types import GUID
 
@@ -47,6 +48,10 @@ class ModelMixin(object):
             return gtyp
         except KeyError:
             return GeometryTypes.NONE
+
+    @classmethod
+    def schema(cls) -> marshmallow.Schema:
+        return marshmallow.schema(cls, cache=True)
 
 
 class AutoGuidMixin(object):

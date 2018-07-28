@@ -49,17 +49,6 @@ class ModelMixin(object):
         except KeyError:
             return GeometryTypes.NONE
 
-    @classmethod
-    def schema(cls) -> marshmallow.Schema:
-        """
-        Get a
-        `Marshmallow schema <https://marshmallow.readthedocs.io/en/3.0/api_reference.html#schema>`_
-        to use with this model class.
-
-        :return: the marshmallow schema
-        """
-        return marshmallow.schema(cls, cache=True)
-
 
 class AutoGuidMixin(object):
     """

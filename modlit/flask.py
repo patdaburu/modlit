@@ -3,16 +3,16 @@
 
 # Created on 7/28/18 by Pat Blair
 """
-.. currentmodule:: modlit.marshmallow
+.. currentmodule:: flask
 .. moduleauthor:: Pat Blair <pblair@geo-comm.com>
 
-`Marshmallow <https://marshmallow.readthedocs.io/en/3.0/>`_ is all about simplified object
-serialization.
+This module needs a description.
 """
+
 import inspect
 from typing import cast, Type
-from flask_restplus import Api
-from marshmallow import Schema, fields #, pprint, post_load, ValidationError, validates
+from flask_restplus import fields, Api
+#from marshmallow import Schema, fields #, pprint, post_load, ValidationError, validates
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 #import sqlalchemy.types
 import sqlalchemy.sql.sqltypes
@@ -20,19 +20,15 @@ from .types import GUID
 from .meta import has_column_meta, get_column_meta
 
 
-MARSHMALLOW_SCHEMA_ATTR = '__marshmallow_schema__'
-
-
-# See http://docs.sqlalchemy.org/en/latest/core/type_basics.html
-SQA_MM_TYPES = {
-    GUID: fields.UUID,
+SQA_RESTPLUS_TYPES = {
+    #GUID: fields.UUID,
     sqlalchemy.types.BigInteger: fields.Integer,
     sqlalchemy.types.Boolean: fields.Boolean,
     sqlalchemy.types.Date: fields.DateTime,
     sqlalchemy.types.Float: fields.Float,
     sqlalchemy.types.Integer: fields.Integer,
     sqlalchemy.types.Text: fields.String,
-    sqlalchemy.types.Time: fields.Time,
+    sqlalchemy.types.Time: fields.DateTime,
     sqlalchemy.sql.sqltypes.String: fields.String,
     sqlalchemy.sql.sqltypes.BIGINT: fields.Integer,
     sqlalchemy.sql.sqltypes.BOOLEAN: fields.Boolean,
@@ -49,40 +45,22 @@ SQA_MM_TYPES = {
     sqlalchemy.sql.sqltypes.REAL: fields.Float,
     sqlalchemy.sql.sqltypes.SMALLINT: fields.Integer,
     sqlalchemy.sql.sqltypes.TEXT: fields.String,
-    sqlalchemy.sql.sqltypes.TIME: fields.Time,
+    sqlalchemy.sql.sqltypes.TIME: fields.DateTime,
     sqlalchemy.sql.sqltypes.TIMESTAMP: fields.DateTime,
     sqlalchemy.sql.sqltypes.VARCHAR: fields.String
 }  #: a mapping of SqlAlchemy types to marshmallow field type constructors.
 
 
-def schema(cls: Type, name: str = None, cache: bool = True) -> Schema:
-    """
-    Generate a
-    `Marshmallow schema <https://marshmallow.readthedocs.io/en/3.0/api_reference.html#schema>`_
-    for a class.
+def api_model(cls: Type, api: Api, name: str = None):
 
-    :param cls: the data class for which you need a schema
-    :param name: the preferred name of the generated schema class  (If no argument is provided we
-        create a name based on the class name.)
-    :param cache: `True` to cache the generated schema for subsequent calls (or used the
-        cached schema), `False` to ignore caching
-    :return: the generated Marshmallow schema
-    """
-    # If we're employing a caching strategy (so we don't have to do this over and over)...
-    if cache:
-        # ...try to return any previously-generated schema.
-        try:
-            # ...it should be waiting and we can return it.
-            return getattr(cls, MARSHMALLOW_SCHEMA_ATTR)
-        except AttributeError:
-            pass  # That's all right.  It just means we haven't generated it yet.
+    _name = name if name else cls.__name__
 
-    # What shall we call the schema class?
-    _clsname = name if name else f'{cls.__name__}Schema'
+    if _name in api.models:
+        return api.models[_name]
 
     # Create a dictionary to hold attribute values we'll use to construct our dynamic Schema
     # class.
-    attrs_ = {}
+    fields = {}
 
     # We think this is a SQLAlchemy class.  Moreover, we expect it's a modlit model.
     # So, we're interested in attributes that appear to be SQLAlchemy `InstrumentedAttribute`
@@ -95,32 +73,18 @@ def schema(cls: Type, name: str = None, cache: bool = True) -> Schema:
         col_meta = get_column_meta(sqa_attr)
         sqa_type = sqa_attr.property.columns[0].type
         try:
-            mm_type = SQA_MM_TYPES[type(sqa_type)]
-            attrs_[col_meta.label] = mm_type(description=col_meta.description)
+            mm_type = SQA_RESTPLUS_TYPES[type(sqa_type)]
+            fields[attr_name] = mm_type()
         except KeyError:
             print(f'***********DID NOT FIND A MM TYPE FOR {sqa_type}')  #: TODO: Logging!!!!
 
-    # Create the schema.
-    schema_cls = type(_clsname, (Schema,), attrs_)
-    # If we're caching, stash it in the class for next time.
-    if cache:
-        setattr(cls, MARSHMALLOW_SCHEMA_ATTR, schema_cls)
-    # That should be that.
-    return cast(Schema, schema_cls)
+    return api.model(_name, fields)
 
 
-class MarshmallowSchemaMixin(object):
-    """
-    Mix this into your data class if you need a
-    `Marshmallow schema <https://marshmallow.readthedocs.io/en/3.0/api_reference.html#schema>`_
-    representation of your object.
+class ApiModelMixin(object):
 
-    .. seealso::
-
-        :py:func:`schema`
-    """
     @classmethod
-    def schema(cls) -> Schema:
+    def api_model(cls, api: Api, name: str = None):
         """
         Get a
         `Marshmallow schema <https://marshmallow.readthedocs.io/en/3.0/api_reference.html#schema>`_
@@ -128,8 +92,21 @@ class MarshmallowSchemaMixin(object):
 
         :return: the marshmallow schema
         """
-        return schema(cls, cache=True)
+        return api_model(cls=cls, api=api, name=name)
 
 
 
-
+# Sneetch: api.model = api.model(
+#     'Sneetch',
+#     {
+#         'name': fields.String(
+#             required=True,
+#             description="the name of the sneetch"
+#         ),
+#         'stars': fields.Integer(
+#             description="the number of belly stars",
+#             required=False,
+#             default=0
+#         )
+#     }
+# )  #: That day they decided that sneetches are sneetches...

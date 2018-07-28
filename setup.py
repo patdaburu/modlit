@@ -40,12 +40,14 @@ setup(
     # 'numpy>=1.13.3,<2',
     # 'measurement>=1.8.0,<2'
     'addict>=2.1.3,<3',
+    'flask-restplus>=0.11.0,<1',
     'orderedset>=2.0.1,<3',
     'psycopg2-binary>=2.7.4,<3',
     'GeoAlchemy2>=0.4.2,<1',
     'SQLAlchemy>=1.2.6,<2',
     'titlecase>=0.12.0,<1',
-    'dataclasses>=0.6,<1'
+    'dataclasses>=0.6,<1',
+    'sqlparse>=0.2.4,<0.3'
   ],
   python_requires=">=3.6",
   license='MIT',

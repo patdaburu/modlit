@@ -1,22 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Created on 7/28/18 by Pat Blair
 """
-.. currentmodule:: flask
+.. currentmodule:: modlit.flask
 .. moduleauthor:: Pat Blair <pblair@geo-comm.com>
 
-This module needs a description.
+Look in here for `Flask-RESTPlus <http://flask-restplus.readthedocs.io/en/stable/>`_ extensions.
 """
 
 import inspect
-from typing import cast, Type
-from flask_restplus import fields, Api
-#from marshmallow import Schema, fields #, pprint, post_load, ValidationError, validates
+from typing import Type
+from flask_restplus import fields, Namespace
 from sqlalchemy.orm.attributes import InstrumentedAttribute
-#import sqlalchemy.types
 import sqlalchemy.sql.sqltypes
-from .types import GUID
 from .meta import has_column_meta, get_column_meta
 
 
@@ -51,12 +47,12 @@ SQA_RESTPLUS_TYPES = {
 }  #: a mapping of SqlAlchemy types to marshmallow field type constructors.
 
 
-def api_model(cls: Type, api: Api, name: str = None):
+def api_model(cls: Type, ns: Namespace, name: str = None):
 
     _name = name if name else cls.__name__
 
-    if _name in api.models:
-        return api.models[_name]
+    if _name in ns.models:
+        return ns.models[_name]
 
     # Create a dictionary to hold attribute values we'll use to construct our dynamic Schema
     # class.
@@ -70,7 +66,7 @@ def api_model(cls: Type, api: Api, name: str = None):
             if isinstance(member[1], InstrumentedAttribute)
             and has_column_meta(member[1])
     ]:
-        col_meta = get_column_meta(sqa_attr)
+        col_meta = get_column_meta(sqa_attr)  # TODO: Figure out the "required" business.
         sqa_type = sqa_attr.property.columns[0].type
         try:
             mm_type = SQA_RESTPLUS_TYPES[type(sqa_type)]
@@ -78,13 +74,13 @@ def api_model(cls: Type, api: Api, name: str = None):
         except KeyError:
             print(f'***********DID NOT FIND A MM TYPE FOR {sqa_type}')  #: TODO: Logging!!!!
 
-    return api.model(_name, fields)
+    return ns.model(_name, fields)
 
 
 class ApiModelMixin(object):
 
     @classmethod
-    def api_model(cls, api: Api, name: str = None):
+    def api_model(cls, ns: Namespace, name: str = None):
         """
         Get a
         `Marshmallow schema <https://marshmallow.readthedocs.io/en/3.0/api_reference.html#schema>`_
@@ -92,7 +88,7 @@ class ApiModelMixin(object):
 
         :return: the marshmallow schema
         """
-        return api_model(cls=cls, api=api, name=name)
+        return api_model(cls=cls, ns=ns, name=name)
 
 
 

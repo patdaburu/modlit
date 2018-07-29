@@ -11,16 +11,14 @@ serialization.
 """
 import inspect
 from typing import cast, Type
-from flask_restplus import Api
-from marshmallow import Schema, fields #, pprint, post_load, ValidationError, validates
+from marshmallow import Schema, fields, post_load #, pprint, post_load, ValidationError, validates
 from sqlalchemy.orm.attributes import InstrumentedAttribute
-#import sqlalchemy.types
 import sqlalchemy.sql.sqltypes
 from .types import GUID
 from .meta import has_column_meta, get_column_meta
 
 
-MARSHMALLOW_SCHEMA_ATTR = '__marshmallow_schema__'
+MM_SCHEMA_ATTR = '__marshmallow_schema__'
 
 
 # See http://docs.sqlalchemy.org/en/latest/core/type_basics.html
@@ -55,7 +53,7 @@ SQA_MM_TYPES = {
 }  #: a mapping of SqlAlchemy types to marshmallow field type constructors.
 
 
-def schema(cls: Type, name: str = None, cache: bool = True) -> Schema:
+def mm_schema(cls: Type, name: str = None, cache: bool = True) -> Schema:
     """
     Generate a
     `Marshmallow schema <https://marshmallow.readthedocs.io/en/3.0/api_reference.html#schema>`_
@@ -73,7 +71,7 @@ def schema(cls: Type, name: str = None, cache: bool = True) -> Schema:
         # ...try to return any previously-generated schema.
         try:
             # ...it should be waiting and we can return it.
-            return getattr(cls, MARSHMALLOW_SCHEMA_ATTR)
+            return getattr(cls, MM_SCHEMA_ATTR)
         except AttributeError:
             pass  # That's all right.  It just means we haven't generated it yet.
 
@@ -100,13 +98,30 @@ def schema(cls: Type, name: str = None, cache: bool = True) -> Schema:
         except KeyError:
             print(f'***********DID NOT FIND A MM TYPE FOR {sqa_type}')  #: TODO: Logging!!!!
 
-    # Create the schema.
+    # Add the post-load function to create an instance of the object.
+    def _post_load(_, __, original_data):  # _ = self, __ = data
+        obj = cls()
+        for key in original_data:
+            print(key)
+            setattr(obj, key, original_data[key])
+        return obj
+
+    attrs_['_post_load'] = post_load(fn=_post_load, pass_original=True)
+
+    # _post_load = post_load(fn=lambda _, data: cls().init(data))
+    # attrs_['_post_load'] = _post_load
+
+
+
+    # Create the schema class.
     schema_cls = type(_clsname, (Schema,), attrs_)
+    # Now create an instance.
+    schema_obj = schema_cls()
     # If we're caching, stash it in the class for next time.
     if cache:
-        setattr(cls, MARSHMALLOW_SCHEMA_ATTR, schema_cls)
+        setattr(cls, MM_SCHEMA_ATTR, schema_obj)
     # That should be that.
-    return cast(Schema, schema_cls)
+    return cast(Schema, schema_obj)
 
 
 class MarshmallowSchemaMixin(object):
@@ -120,7 +135,7 @@ class MarshmallowSchemaMixin(object):
         :py:func:`schema`
     """
     @classmethod
-    def schema(cls) -> Schema:
+    def mm_schema(cls) -> Schema:
         """
         Get a
         `Marshmallow schema <https://marshmallow.readthedocs.io/en/3.0/api_reference.html#schema>`_
@@ -128,7 +143,7 @@ class MarshmallowSchemaMixin(object):
 
         :return: the marshmallow schema
         """
-        return schema(cls, cache=True)
+        return mm_schema(cls, cache=True)
 
 
 

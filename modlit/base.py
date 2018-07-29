@@ -27,6 +27,11 @@ class ModelMixin(object):
     """
     __geoattr__ = 'geometry'  #: the name of the geometry column attribute
 
+    def init(self, **kwargs):
+        for key in kwargs:
+            self.__dict__[key] = kwargs[key]
+        return self
+
     @classmethod
     def geometry_type(cls) -> GeometryTypes:
         """

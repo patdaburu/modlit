@@ -10,7 +10,7 @@ Look in here for `Flask-RESTPlus <http://flask-restplus.readthedocs.io/en/stable
 
 import inspect
 from typing import Type
-from flask_restplus import fields, Namespace
+from flask_restplus import Namespace, fields
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 import sqlalchemy.sql.sqltypes
 from .meta import has_column_meta, get_column_meta

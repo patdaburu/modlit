@@ -10,15 +10,19 @@
 serialization.
 """
 import inspect
+import logging
 from typing import cast, Type
 from marshmallow import Schema, fields, post_load #, pprint, post_load, ValidationError, validates
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 import sqlalchemy.sql.sqltypes
+from .errors import ModlitError
 from .types import GUID
 from .meta import has_column_meta, get_column_meta
 
 
 MM_SCHEMA_ATTR = '__marshmallow_schema__'  #: the name of the attribute that stores cached schemas
+
+_logger = logging.getLogger(__name__)  #: the module's logger
 
 
 # See http://docs.sqlalchemy.org/en/latest/core/type_basics.html
@@ -51,6 +55,14 @@ SQA_MM_TYPES = {
     sqlalchemy.sql.sqltypes.TIMESTAMP: fields.DateTime,
     sqlalchemy.sql.sqltypes.VARCHAR: fields.String
 }  #: a mapping of SqlAlchemy types to marshmallow field type constructors.
+
+
+class ModlitMarshmallowException(ModlitError):
+    """
+    Exceptions of this type are raised when errors are encountered during interactions with the
+    `Marshmallow <https://marshmallow.readthedocs.io/en/3.0/>`_ package.
+    """
+    pass
 
 
 def mm_schema(cls: Type, name: str = None, cache: bool = True) -> Schema:
@@ -96,7 +108,11 @@ def mm_schema(cls: Type, name: str = None, cache: bool = True) -> Schema:
             mm_type = SQA_MM_TYPES[type(sqa_type)]
             attrs_[col_meta.label] = mm_type(description=col_meta.description)
         except KeyError:
-            print(f'***********DID NOT FIND A MM TYPE FOR {sqa_type}')  #: TODO: Logging!!!!
+            _logger.warning(
+                f'The {cls.__name__}.{member} is of type {type(sqa_type)}'
+                f'but there is no equivalent Marshmallow type so the attribute'
+                f'is not included in the Marshmallow schema.'
+            )
 
     # Add the post-load function to create an instance of the object.
     # (Note that we need the original data.)
@@ -136,14 +152,19 @@ class MarshmallowSchemaMixin(object):
 
     @classmethod
     def mm_load(cls, payload):
+        """
+        Create an instance of the class from a payload object.
+
+        :param payload: the payload object
+        :return: the object instance
+        """
         try:
             result = getattr(cls, MM_SCHEMA_ATTR).load(payload)
         except AttributeError:
             result = cls.mm_schema().load(payload)
+
         # TODO: handle error cases and raise appropriate exceptions!
         return result.data
-
-
 
     @classmethod
     def mm_schema(cls) -> Schema:
@@ -155,7 +176,3 @@ class MarshmallowSchemaMixin(object):
         :return: the marshmallow schema
         """
         return mm_schema(cls, cache=True)
-
-
-
-

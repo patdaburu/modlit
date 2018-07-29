@@ -18,7 +18,7 @@ from .types import GUID
 from .meta import has_column_meta, get_column_meta
 
 
-MM_SCHEMA_ATTR = '__marshmallow_schema__'
+MM_SCHEMA_ATTR = '__marshmallow_schema__'  #: the name of the attribute that stores cached schemas
 
 
 # See http://docs.sqlalchemy.org/en/latest/core/type_basics.html
@@ -99,19 +99,18 @@ def mm_schema(cls: Type, name: str = None, cache: bool = True) -> Schema:
             print(f'***********DID NOT FIND A MM TYPE FOR {sqa_type}')  #: TODO: Logging!!!!
 
     # Add the post-load function to create an instance of the object.
+    # (Note that we need the original data.)
     def _post_load(_, __, original_data):  # _ = self, __ = data
+        # Create an instance of the original class.
         obj = cls()
+        # From the original data, copy the key-value pairs to the object.
         for key in original_data:
             print(key)
             setattr(obj, key, original_data[key])
+        # Here's the object.
         return obj
-
+    # Add the post-load function to the dictionary of attributes for the class.
     attrs_['_post_load'] = post_load(fn=_post_load, pass_original=True)
-
-    # _post_load = post_load(fn=lambda _, data: cls().init(data))
-    # attrs_['_post_load'] = _post_load
-
-
 
     # Create the schema class.
     schema_cls = type(_clsname, (Schema,), attrs_)
@@ -134,6 +133,18 @@ class MarshmallowSchemaMixin(object):
 
         :py:func:`schema`
     """
+
+    @classmethod
+    def mm_load(cls, payload):
+        try:
+            result = getattr(cls, MM_SCHEMA_ATTR).load(payload)
+        except AttributeError:
+            result = cls.mm_schema().load(payload)
+        # TODO: handle error cases and raise appropriate exceptions!
+        return result.data
+
+
+
     @classmethod
     def mm_schema(cls) -> Schema:
         """

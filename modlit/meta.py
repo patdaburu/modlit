@@ -329,7 +329,7 @@ class ColumnMeta(_MetaDescription):
         """
         if enum_cls == Requirement:
             return self._source.requirement
-        elif enum_cls == Usage:
+        if enum_cls == Usage:
             return self._target.usage
         return None
 

@@ -6,6 +6,9 @@
 .. moduleauthor:: Pat Blair <pblair@geo-comm.com>
 
 Look in here for `Flask-RESTPlus <http://flask-restplus.readthedocs.io/en/stable/>`_ extensions.
+
+:var SQA_RESTPLUS_TYPES:  a mapping of SqlAlchemy types to marshmallow field
+    type constructors.
 """
 
 import inspect
@@ -14,8 +17,7 @@ from typing import Type
 from flask_restplus import Model, Namespace, fields
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 import sqlalchemy.sql.sqltypes
-from .meta import has_column_meta, get_column_meta
-
+from .meta import has_column_meta
 
 SQA_RESTPLUS_TYPES = {
     #GUID: fields.UUID,  # TODO: Figure out how to handle GUIDs.
@@ -45,7 +47,7 @@ SQA_RESTPLUS_TYPES = {
     sqlalchemy.sql.sqltypes.TIME: fields.DateTime,
     sqlalchemy.sql.sqltypes.TIMESTAMP: fields.DateTime,
     sqlalchemy.sql.sqltypes.VARCHAR: fields.String
-}  #: a mapping of SqlAlchemy types to marshmallow field type constructors.
+}
 
 _logger = logging.getLogger(__name__)  #: the module's logger
 
@@ -67,35 +69,37 @@ def api_model(cls: Type, ns: Namespace, name: str = None) -> Model:
         # ...just return it.
         return ns.models[_name]
 
-    # Create a dictionary to hold attribute values we'll use to construct our dynamic Schema
-    # class.
+    # Create a dictionary to hold attribute values we'll use to construct our
+    # dynamic Schema class.
     fields_ = {}
 
-    # We think this is a SQLAlchemy class.  Moreover, we expect it's a modlit model.
-    # So, we're interested in attributes that appear to be SQLAlchemy `InstrumentedAttribute`
-    # instances that also have column metadata attached.
+    # We think this is a SQLAlchemy class.  Moreover, we expect it's a modlit
+    # model.  So, we're interested in attributes that appear to be SQLAlchemy
+    # `InstrumentedAttribute` instances that also have column metadata attached.
     for attr_name, sqa_attr in [
             member for member in inspect.getmembers(cls)
             if isinstance(member[1], InstrumentedAttribute)
             and has_column_meta(member[1])
     ]:
-        col_meta = get_column_meta(sqa_attr)  # TODO: Figure out the "required" business.
+#        col_meta = get_column_meta(sqa_attr)  # TODO: Figure out the "required" business.
         sqa_type = sqa_attr.property.columns[0].type
         try:
             mm_type = SQA_RESTPLUS_TYPES[type(sqa_type)]
             fields_[attr_name] = mm_type()
         except KeyError:
             _logger.warning(
-                f'The {cls.__name__}.{member} is of type {type(sqa_type)}'
-                f'but there is no equivalent Flask-RESTPlus type so the attribute'
-                f'is not included in the API model.'
+                f'The {cls.__name__}.{attr_name} is of type {type(sqa_type)}'
+                f'but there is no equivalent Flask-RESTPlus type so the '
+                f'attribute is not included in the API model.'
             )
     # We should now have enough information to create the model.
     return ns.model(_name, fields_)
 
 
 class ApiModelMixin(object):
-
+    """
+    Mix this into your class to create a Flask-RESTPlus API.
+    """
     @classmethod
     def api_model(cls, ns: Namespace, name: str = None) -> Model:
         """
@@ -106,20 +110,3 @@ class ApiModelMixin(object):
         :return: the Flask-RESTPlus model
         """
         return api_model(cls=cls, ns=ns, name=name)
-
-
-
-# Sneetch: api.model = api.model(
-#     'Sneetch',
-#     {
-#         'name': fields.String(
-#             required=True,
-#             description="the name of the sneetch"
-#         ),
-#         'stars': fields.Integer(
-#             description="the number of belly stars",
-#             required=False,
-#             default=0
-#         )
-#     }
-# )  #: That day they decided that sneetches are sneetches...

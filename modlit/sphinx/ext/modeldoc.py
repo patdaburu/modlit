@@ -52,6 +52,16 @@ def setup(app):
     return {'version': modlit_version, 'parallel_read_safe': True}
 
 
+def get_bool_mark(bool_: bool):
+    """
+    Get a boolean 'yes' or 'no' mark.
+
+    :param bool_: Yes, or no?
+    :return: the mark that matches the value
+    """
+    return '✔' if bool_ else '✘'
+
+
 # pylint: disable=too-many-locals
 class ModelClassDocumenter(ClassDocumenter):
     """
@@ -113,7 +123,8 @@ class ModelClassDocumenter(ClassDocumenter):
         if geom_type is not None:
             # ...indicate the geometry type in the document.
             lines[0].extend([
-                f':Geometry Type: {titlecase(self.object.geometry_type().name)}', ''
+                f':Geometry Type: '
+                f'{titlecase(self.object.geometry_type().name)}', ''
             ])
         # Return whatever we have.
         return lines
@@ -147,7 +158,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
         if (isinstance(self.object, (Column, InstrumentedAttribute)) and
                 hasattr(self.object, COLUMN_META_ATTR)):
             # Get the metadata from the column.
-            meta = self.object.__meta__
+            meta: ColumnMeta = self.object.__meta__
             # Create an image that we can put in-line with the rest of the
             # docstring.
             img_sub = str(uuid.uuid4()).replace('-', '')
@@ -158,12 +169,16 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
                 '',
                 f"|{img_sub}| **{meta.label}**", '',
                 meta.description, '',
+                '**Source**', '',
+                self.doc_enum_table(enum_cls=Requirement,
+                                    meta=meta,
+                                    excluded={Requirement.NONE}), '',
+                '**Target**', '',
+                f':Calculated: {get_bool_mark(meta.target.calculated)}', '',
+                f':Guaranteed: {get_bool_mark(meta.target.guaranteed)}', '',
                 self.doc_enum_table(enum_cls=Usage,
                                     meta=meta,
                                     excluded={Usage.NONE}), '',
-                self.doc_enum_table(enum_cls=Requirement,
-                                    meta=meta,
-                                    excluded={Requirement.NONE}), ''
             ]
             # If the meta-data indicates there is a related NENA field...
             if meta.nena is not None:
@@ -173,8 +188,8 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
             rst = '\n'.join(lines)
             # OK, ship it out!
             return[prepare_docstring(rst, 0)]  # don't ignore it!
-        else:  # In all other cases, let the parent class do its thing.
-            return super().get_doc(encoding=encoding, ignore=ignore)
+        # In all other cases, let the parent class do its thing.
+        return super().get_doc(encoding=encoding, ignore=ignore)
 
     @staticmethod
     def doc_enum_table(enum_cls: Type[Union[Requirement, Usage]],
@@ -192,6 +207,17 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
         # Get all of the enumerated values that aren't in the exclusion
         # set.
         vals = [v for v in enum_cls if v not in excluded]
+        lines = []
+        for i, val in enumerate(vals):
+            # We need the name.
+            enum_name = val.name
+            line = f':{titlecase(enum_name)}: ' \
+                   f"{'✔' if meta.get_enum(enum_cls) & vals[i].value else '✘'}"
+            lines.append(line)
+        rst = '\n\n'.join(lines)
+        return rst  # ...that's that.
+
+        """
         # Let's start off with the column specification for the table.
         colspec = f"|{'|'.join(['c'] * len(vals))}|"
         lines = [
@@ -242,7 +268,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
         # Put it all together, and...
         rst = '\n'.join(lines)
         return rst  # ...that's that.
-
+        """
 
 # pylint: disable=unused-argument, too-many-arguments
 def no_namedtuple_attrib_docstring(app, what, name, obj, options, lines):

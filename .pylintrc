@@ -128,7 +128,11 @@ disable=print-statement,
         dict-keys-not-iterating,
         dict-values-not-iterating,
         too-few-public-methods,
-        trailing-whitespace
+        trailing-whitespace,
+        useless-object-inheritance,
+        logging-fstring-interpolation,
+        duplicate-code,
+        fixme
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -262,7 +266,9 @@ good-names=i,
            k,
            ex,
            Run,
-           _
+           _,
+           _logger,
+           ns
 
 # Include a hint for the correct naming format with invalid-name
 include-naming-hint=no

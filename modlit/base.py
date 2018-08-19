@@ -12,7 +12,6 @@ along with some other helpful classes.
 import uuid
 from sqlalchemy.ext.declarative import declarative_base
 from .geometry import GeometryTypes
-from . import marshmallow
 from .meta import column, ColumnMeta, Target
 from .types import GUID
 
@@ -27,10 +26,10 @@ class ModelMixin(object):
     """
     __geoattr__ = 'geometry'  #: the name of the geometry column attribute
 
-    def init(self, **kwargs):
-        for key in kwargs:
-            self.__dict__[key] = kwargs[key]
-        return self
+    # def init(self, **kwargs):
+    #     for key in kwargs:
+    #         self.__dict__[key] = kwargs[key]
+    #     return self
 
     @classmethod
     def geometry_type(cls) -> GeometryTypes:

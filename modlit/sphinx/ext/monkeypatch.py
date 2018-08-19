@@ -34,7 +34,6 @@ def monkeypatch():
 
             https://stackoverflow.com/questions/31784830/sphinx-ivar-tag-goes-looking-for-cross-references
         """
-        # type: (List, unicode, Tuple) -> nodes.field
         def handle_item(fieldarg, content):
             par = nodes.paragraph()
             par += addnodes.literal_strong('', fieldarg)  # Patch: this line added

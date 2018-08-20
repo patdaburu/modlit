@@ -29,7 +29,9 @@ from .monkeypatch import monkeypatch
 from ...base import ModelMixin
 from ...model import IS_MODEL_CLASS
 from ...meta import (
-    ColumnMeta, COLUMN_META_ATTR, TABLE_META_ATTR, Requirement, Usage
+    ColumnMeta, COLUMN_META_ATTR,
+    TableMeta, TABLE_META_ATTR,
+    Requirement, Usage
 )
 
 
@@ -126,6 +128,14 @@ class ModelClassDocumenter(ClassDocumenter):
                 f':Geometry Type: '
                 f'{titlecase(self.object.geometry_type().name)}', ''
             ])
+
+        table_meta: TableMeta = getattr(self.object, TABLE_META_ATTR)
+        synonyms = sorted(list(table_meta.synonyms))
+        if synonyms:
+            lines[0].extend([
+                f":Synonyms: *{', '.join(synonyms)}*", ''
+            ])
+
         # Return whatever we have.
         return lines
 
@@ -176,6 +186,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
                 '**Target**', '',
                 f':Calculated: {get_bool_mark(meta.target.calculated)}', '',
                 f':Guaranteed: {get_bool_mark(meta.target.guaranteed)}', '',
+                '**Usage**', '',
                 self.doc_enum_table(enum_cls=Usage,
                                     meta=meta,
                                     excluded={Usage.NONE}), '',
@@ -184,6 +195,12 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
             if meta.nena is not None:
                 # ...we'll include it!
                 lines.extend([f':NENA: *{meta.nena}*', ''])
+            # If there are synonyms...
+            synonyms = sorted(meta.synonyms)
+            if synonyms:
+                lines.extend([
+                    f":Synonyms: *{', '.join(synonyms)}*", ''
+                ])
             # Put it all together.
             rst = '\n'.join(lines)
             # OK, ship it out!
@@ -217,58 +234,59 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
         rst = '\n\n'.join(lines)
         return rst  # ...that's that.
 
-        """
-        # Let's start off with the column specification for the table.
-        colspec = f"|{'|'.join(['c'] * len(vals))}|"
-        lines = [
-            f'.. tabularcolumns:: {colspec}', ''
-        ]
-        # We're going to be formatting fixed-width text.  Let's do so with
-        # three lists...
-        tbl_hborders = [''] * len(vals)  # the horizontal borders
-        tbl_headers = [''] * len(vals)  # the table headers
-        tbl_values = [''] * len(vals)  # the values
-        # Let's look at each of the values.
-        for i, val in enumerate(vals):
-            # We need the name.
-            enum_name = val.name
-            # The character width of the column is the length of the name
-            # plus one (1) padding space on each side.
-            colwidth = (len(enum_name) + 2)
-            # Now that we know the width, the border for this index can be
-            # defined.
-            tbl_hborders[i] = '-' * colwidth
-            # Title-case the numeration name and place it in the headers
-            # list at the current index.
-            tbl_headers[i] = f' {titlecase(enum_name)} '
-            # The yes-or-no indicator will only take up a single character,
-            # but we need to pad it to maintain the fixed width.
-            xo = [' '] * colwidth  # pylint: disable=invalid-name
-            # Leaving one space on the left, put a yes-or-no indicator in
-            # the column.  (We're using ASCII characters which we'll
-            # replace in a moment.  For some reason, the extended characters
-            # seem to pad the list with an extra space.)
-            xo[1] = (
-                u'Y' if meta.get_enum(enum_cls) & vals[i].value else u'N'
-            )
-            # Build the string.
-            xos = ''.join(xo)
-            # Update the string with visual symbols.
-            xos = xos.replace('N', '✘')
-            xos = xos.replace('Y', '✔')
-            # That's the text for the values list at this index.
-            tbl_values[i] = xos
-        # Construct the table.
-        hborder = f"+{'+'.join(tbl_hborders)}+"
-        lines.append(hborder)
-        lines.append(f"|{'|'.join(tbl_headers)}|")
-        lines.append(hborder)
-        lines.append(f"|{'|'.join(tbl_values)}|")
-        lines.append(hborder)
-        # Put it all together, and...
-        rst = '\n'.join(lines)
-        return rst  # ...that's that.
-        """
+        # """
+        # # Let's start off with the column specification for the table.
+        # colspec = f"|{'|'.join(['c'] * len(vals))}|"
+        # lines = [
+        #     f'.. tabularcolumns:: {colspec}', ''
+        # ]
+        # # We're going to be formatting fixed-width text.  Let's do so with
+        # # three lists...
+        # tbl_hborders = [''] * len(vals)  # the horizontal borders
+        # tbl_headers = [''] * len(vals)  # the table headers
+        # tbl_values = [''] * len(vals)  # the values
+        # # Let's look at each of the values.
+        # for i, val in enumerate(vals):
+        #     # We need the name.
+        #     enum_name = val.name
+        #     # The character width of the column is the length of the name
+        #     # plus one (1) padding space on each side.
+        #     colwidth = (len(enum_name) + 2)
+        #     # Now that we know the width, the border for this index can be
+        #     # defined.
+        #     tbl_hborders[i] = '-' * colwidth
+        #     # Title-case the numeration name and place it in the headers
+        #     # list at the current index.
+        #     tbl_headers[i] = f' {titlecase(enum_name)} '
+        #     # The yes-or-no indicator will only take up a single character,
+        #     # but we need to pad it to maintain the fixed width.
+        #     xo = [' '] * colwidth  # pylint: disable=invalid-name
+        #     # Leaving one space on the left, put a yes-or-no indicator in
+        #     # the column.  (We're using ASCII characters which we'll
+        #     # replace in a moment.  For some reason, the extended characters
+        #     # seem to pad the list with an extra space.)
+        #     xo[1] = (
+        #         u'Y' if meta.get_enum(enum_cls) & vals[i].value else u'N'
+        #     )
+        #     # Build the string.
+        #     xos = ''.join(xo)
+        #     # Update the string with visual symbols.
+        #     xos = xos.replace('N', '✘')
+        #     xos = xos.replace('Y', '✔')
+        #     # That's the text for the values list at this index.
+        #     tbl_values[i] = xos
+        # # Construct the table.
+        # hborder = f"+{'+'.join(tbl_hborders)}+"
+        # lines.append(hborder)
+        # lines.append(f"|{'|'.join(tbl_headers)}|")
+        # lines.append(hborder)
+        # lines.append(f"|{'|'.join(tbl_values)}|")
+        # lines.append(hborder)
+        # # Put it all together, and...
+        # rst = '\n'.join(lines)
+        # return rst  # ...that's that.
+        # # """
+
 
 # pylint: disable=unused-argument, too-many-arguments
 def no_namedtuple_attrib_docstring(app, what, name, obj, options, lines):
@@ -297,7 +315,6 @@ def no_namedtuple_attrib_docstring(app, what, name, obj, options, lines):
     if is_namedtuple_docstring:
         # We don't return, so we need to purge in-place
         del lines[:]
-
 
 
 def export_images(path: Path):

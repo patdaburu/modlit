@@ -9,7 +9,7 @@
 This module contains general members to help you work with the model.
 """
 import inspect
-from typing import List
+from typing import Iterable, List
 from .meta import Column, COLUMN_META_ATTR, TableMeta, TABLE_META_ATTR
 from .modules import walk_load
 
@@ -17,11 +17,12 @@ from .modules import walk_load
 IS_MODEL_CLASS = '__model_cls__'  #: signifies a model class
 
 
-def model(label: str):
+def model(label: str, synonyms: Iterable[str]=None):
     """
     Use this decorator to provide meta-data for your model class.
 
     :param label: the friendly label for the class
+    :param synonyms: other names by which this type of table goes
     """
 
     def modelify(cls):
@@ -36,7 +37,10 @@ def model(label: str):
         # If the label parameter hasn't already been specified...
         if not hasattr(cls, TABLE_META_ATTR):
             # ...update it now.
-            setattr(cls, TABLE_META_ATTR, TableMeta(label=label))
+            setattr(cls,
+                    TABLE_META_ATTR,
+                    TableMeta(label=label,
+                              synonyms=synonyms))
 
         # Let's go through every class in the hierarchy...
         for mro in inspect.getmro(cls):

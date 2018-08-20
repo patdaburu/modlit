@@ -17,56 +17,55 @@ from typing import cast, Any, Iterable, Type, Union
 from orderedset import OrderedSet
 from sqlalchemy import Column
 from sqlalchemy.orm.attributes import InstrumentedAttribute
+from .errors import ModlitError
 
 
 COLUMN_META_ATTR = '__meta__'  #: the property that contains column metadata
 TABLE_META_ATTR = '__meta__'  #: the property that contains table metadata
 
 
+class ConstraintException(ModlitError):
+    """
+    Raised when errors pertaining to constraints are encountered.
+
+    ..seealso::
+
+        :py:class:`Constraint`
+    """
+    pass
+
+
+class DuplicateConstraintException(ConstraintException):
+    """
+    Raised when duplicate, potentially conflicting constraints are encountered.
+
+    ..seealso::
+
+        :py:class:`Constraint`
+    """
+
+
+# class InvalidConstraintException(ConstraintException):
+#     """
+#     Raised when a constraint is applied to an inappropriate type.
+#
+#     ..seealso::
+#
+#         :py:class:`Constraint`
+#     """
+
+
 class _MetaDescription(ABC):
     """
     This is base class for objects that provide meta-data descriptions.
     """
-
-    def __eq__(self, other):
-        try:
-            # Compare the values in all the slots.
-            for slot in self.__slots__:
-                # If one of the values isn't equal...
-                if getattr(self, slot) != getattr(other, slot):
-                    # ...the objects aren't equal.
-                    return False
-            # It looks like everything was the same.  Great.
-            return True
-        except AttributeError:
-            # This may happen if the object's aren't of the same type (or
-            # at least they don't quack alike).  If it does, let the parent
-            # class take over.
-            return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-    
-    def __repr__(self):
-        # We will establish the parameter names by removing the underscore from
-        # the names we find in the __slots__, but we'll get the values according
-        # to (of course) the original names we find.  This is in accordance
-        # with a convention shared by the classes in this module that inherit
-        # from this object to gain common behavior.
-        params = [
-            f'{slot}={repr(getattr(self, slot))[1:]}'
-            for slot in getattr(self, '__slots__')
-        ]
-        # Now put it all together with the class name to produce a
-        # pseudo-constructor string.
-        return f"{self.__class__.__name__}({', '.join(params)})"
+    pass
 
 
 class _Synonyms(object):
     """
     This is a helper object that keeps track of synonyms for meta-info objects.
     """
-    __slots__ = ['_synonyms', '_synonyms_re']
 
     def __init__(self, synonyms: Iterable[str] = None):
         """
@@ -82,6 +81,15 @@ class _Synonyms(object):
         self._synonyms_re: OrderedSet = OrderedSet(
             [re.compile(s, re.IGNORECASE) for s in self._synonyms]
         )
+
+    @property
+    def synonyms(self) -> Iterable[str]:
+        """
+        Get the synonymous names.
+
+        :return: an iteration of the synonymous names
+        """
+        return iter(self._synonyms)
 
     def is_synonym(self, name: str):
         """
@@ -109,6 +117,41 @@ class _Synonyms(object):
         return not self.__eq__(other)
 
 
+class _HasSynonyms(object):
+    """
+    Mix this into your meta object if the meta information describes a named
+    object with synonyms.
+    """
+    def __init__(self,
+                 synonyms: Iterable[str],
+                 *args, **kwargs):
+        """
+
+        :param synonyms: the synonyms
+        """
+        super().__init__(*args, **kwargs)  # cooperative super()
+        self._synonyms = _Synonyms(synonyms)
+
+    @property
+    def synonyms(self) -> Iterable[str]:
+        """
+        Get the synonymous names for this table.
+
+        :return: an iteration of the synonymous names
+        """
+        return self._synonyms.synonyms
+
+    def is_synonym(self, name: str) -> bool:
+        """
+        Test a name to see if it's a synonym for the table's name.
+
+        :param name: the table name
+        :return: `True` if the name is a synonym for this table, otherwise
+            `False`
+        """
+        return self._synonyms.is_synonym(name)
+
+
 class Requirement(IntFlag):
     """
     This enumeration describes contracts with source data providers.
@@ -122,7 +165,6 @@ class Source(_MetaDescription):
     """
     'Source' information defines contracts with data providers.
     """
-    __slots__ = ['_requirement', '_synonyms']
 
     def __init__(self,
                  requirement: Requirement = Requirement.NONE,
@@ -167,7 +209,6 @@ class Target(_MetaDescription):
     """
     'Target' information describes contracts with data consumers.
     """
-    __slots__ = ['_guaranteed', '_calculated', '_usage']
 
     def __init__(self,
                  guaranteed: bool = False,
@@ -218,12 +259,70 @@ class Target(_MetaDescription):
         return self._usage
 
 
-class TableMeta(_MetaDescription):
+class ModelMeta(_MetaDescription):
+    """
+    Metadata for entire data models.
+    """
+
+    def __init__(self,
+                 title: str,
+                 slug: str,
+                 author_name: str,
+                 author_email: str,
+                 version: str):
+        """
+
+        :param title: a friendly, human-readable title for the model
+        :param slug: a short identifier for the model
+        :param author_name: the name of the model's author
+        :param author_email: the model author's email address
+        :param version:
+        """
+        self._title = title
+        self._slug = slug
+        self._author_name = author_name
+        self._author_email = author_email
+        self._version = version
+
+    def get_urn(self) -> str:
+        """
+        Get the uniform resource name (URN) that identifies the model.
+        """
+        return f'urn:com.geo-comm.modlit:{self._slug}:{self._version}'
+
+    @property
+    def title(self) -> str:
+        """
+        Get the model's friendly, descriptive, human-readable title.
+        """
+        return self._title
+
+    @property
+    def author_name(self) -> str:
+        """
+        Get the model author's name.
+        """
+        return self._author_name
+
+    @property
+    def author_email(self) -> str:
+        """
+        Get the model author's email.
+        """
+        return self._author_name
+
+    @property
+    def version(self) -> str:
+        """
+        Get the model version.
+        """
+        return self._version
+
+
+class TableMeta(_MetaDescription, _HasSynonyms):
     """
     Metadata for tables.
     """
-    __slots__ = ['_label', '_synonyms']
-
     def __init__(self,
                  label: str = None,
                  synonyms: Iterable[str] = None):
@@ -231,8 +330,8 @@ class TableMeta(_MetaDescription):
 
         :param label: the human-friendly label for the column
         """
+        super().__init__(synonyms=synonyms)
         self._label = label
-        self._synonyms = _Synonyms(synonyms)
 
     @property
     def label(self) -> str:
@@ -243,29 +342,20 @@ class TableMeta(_MetaDescription):
         """
         return self._label
 
-    def is_synonym(self, name: str) -> bool:
-        """
-        Test a name to see if it's a synonym for the table's name.
 
-        :param name: the table name
-        :return: `True` if the name is a synonym for this table, otherwise
-            `False`
-        """
-        return self._synonyms.is_synonym(name)
-
-
-class ColumnMeta(_MetaDescription):
+class ColumnMeta(_MetaDescription, _HasSynonyms):
     """
     Metadata for table columns.
     """
-    __slots__ = ['_label', '_description', '_nena', '_source', '_target']
 
     def __init__(self,
                  label: str = None,
                  description: str = None,
                  nena: str = None,
                  source: Source = None,
-                 target: Target = None):
+                 target: Target = None,
+                 synonyms: Iterable[str] = None):
+        super().__init__(synonyms=synonyms)
         self._label = label if label is not None else ''
         self._description = description if description is not None else ''
         self._nena = nena

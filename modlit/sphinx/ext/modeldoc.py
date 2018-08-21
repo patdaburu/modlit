@@ -181,16 +181,30 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
             )
             # Create an image that we can put in-line with the rest of the
             # docstring.
-            img_sub = str(uuid.uuid4()).replace('-', '')
+            col_img_sub = str(uuid.uuid4()).replace('-', '')
             lines = [
-                f".. |{img_sub}| image:: {IMAGES_PATH / 'column.svg'}",
+                f".. |{col_img_sub}| image:: {IMAGES_PATH / 'column.svg'}",
                 '    :width: 24px',
                 '    :height: 24px',
                 '',
-                f"|{img_sub}| **{meta.label}**", '',
+            ]
+
+            if meta.data_type_meta.primary_key:
+                key_img_sub = str(uuid.uuid4()).replace('-', '')
+                lines.extend([
+                    f".. |{key_img_sub}| image:: {IMAGES_PATH / 'key.svg'}",
+                    '    :width: 24px',
+                    '    :height: 24px',
+                    '',
+                    f"|{col_img_sub}| |{key_img_sub}| **{meta.label}**", ''
+                ])
+            else:
+                lines.extend([f"|{col_img_sub}| **{meta.label}**", ''])
+
+            lines.extend([
                 meta.description, '',
                 f':Type: {ddts}', ''
-            ]
+            ])
             # Add the data type modifiers that are defined for this column.
             for _label, _value in [
                     ('Width', meta.data_type_meta.width,),

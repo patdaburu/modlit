@@ -75,26 +75,6 @@ SQA_DATETIME_TYPES = {
 }  #: SQLAlchemy date/time types
 
 
-# class ConstraintException(ModlitError):
-#     """
-#     Raised when errors pertaining to constraints are encountered.
-#
-#     ..seealso::
-#
-#         :py:class:`Constraint`
-#     """
-#     pass
-#
-#
-# class DuplicateConstraintException(ConstraintException):
-#     """
-#     Raised when duplicate, potentially conflicting constraints are encountered.
-#
-#     ..seealso::
-#
-#         :py:class:`Constraint`
-#     """
-
 class UnsupportedSqlAlchemyTypeException(ModlitError):
     """
     Raised when an unsupported SQLAlchemy data type is encountered.
@@ -117,8 +97,8 @@ class DeclarativeDataType(Enum):
     TEXT = 'TEXT'  #: text data (strings, characters, etc.)
     INTEGER = 'INTEGER'  #: integer values
     FLOAT = 'FLOAT'  #: floating-point values
-    DATE = 'DATE',  #: dates
-    TIME = 'TIME',  #: times
+    DATE = 'DATE'  #: dates
+    TIME = 'TIME'  #: times
     DATETIME = 'DATETIME'  #: date and time
 
     @staticmethod
@@ -145,17 +125,17 @@ class DeclarativeDataType(Enum):
 # types to their respective, generalized declarative types
 _SQA_DDT: Dict[type, DeclarativeDataType] = {}
 # Populate the _SQA_DDT dictionary.
-for decl_, set_ in [
-    (DeclarativeDataType.UUID, SQA_UUID_TYPES),
-    (DeclarativeDataType.TEXT, SQA_TEXT_TYPES,),
-    (DeclarativeDataType.INTEGER, SQA_INT_TYPES,),
-    (DeclarativeDataType.FLOAT, SQA_FP_TYPES,),
-    (DeclarativeDataType.DATE, SQA_DATE_TYPES,),
-    (DeclarativeDataType.TIME, SQA_TIME_TYPES,),
-    (DeclarativeDataType.DATETIME, SQA_DATETIME_TYPES),
+for _decl, set_ in [
+        (DeclarativeDataType.UUID, SQA_UUID_TYPES),
+        (DeclarativeDataType.TEXT, SQA_TEXT_TYPES,),
+        (DeclarativeDataType.INTEGER, SQA_INT_TYPES,),
+        (DeclarativeDataType.FLOAT, SQA_FP_TYPES,),
+        (DeclarativeDataType.DATE, SQA_DATE_TYPES,),
+        (DeclarativeDataType.TIME, SQA_TIME_TYPES,),
+        (DeclarativeDataType.DATETIME, SQA_DATETIME_TYPES),
 ]:
-    for sqa_type in set_:
-        _SQA_DDT[sqa_type] = decl_
+    for _sqa_type in set_:
+        _SQA_DDT[_sqa_type] = _decl
 
 
 def _get_dtype_attr(dtype: Column, attr_name: str) -> Any or None:
@@ -506,11 +486,13 @@ class DataTypeMeta(_MetaDescription):
                  declarative: DeclarativeDataType,
                  width_: int or None,
                  precision_: int or None,
-                 scale_: int or None):
+                 scale_: int or None,
+                 primary_key: bool):
         self._declarative: DeclarativeDataType = declarative
         self._width = width_
         self._precision = precision_
         self._scale = scale_
+        self._primary_key = primary_key
 
     @property
     def declarative(self) -> DeclarativeDataType:
@@ -520,6 +502,15 @@ class DataTypeMeta(_MetaDescription):
         :return: the generalized, declarative data type
         """
         return self._declarative
+
+    @property
+    def primary_key(self) -> bool:
+        """
+        Is this a primary key field?
+
+        :return: `True` if the column is the primary key, otherwise `False`
+        """
+        return self._primary_key
 
     @property
     def width(self) -> int or None:
@@ -753,7 +744,8 @@ def column(dtype: Any, meta: ColumnMeta, *args, **kwargs) -> Column:
             declarative=DeclarativeDataType.from_sqa_type(dtype),
             width_=width(dtype),
             precision_=precision(dtype),
-            scale_=scale(dtype)
+            scale_=scale(dtype),
+            primary_key=('primary_key' in kwargs and kwargs['primary_key'])
         )
         # Take special liberties and directly update the `ColumnMeta` object.
         setattr(meta, '_dtmeta', dtmeta)

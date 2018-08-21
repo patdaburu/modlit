@@ -16,12 +16,41 @@ from functools import reduce
 from typing import cast, Any, Iterable, Type, Union
 from orderedset import OrderedSet
 from sqlalchemy import Column
+#import sqlalchemy.sql.sqltypes
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from .errors import ModlitError
 
 
 COLUMN_META_ATTR = '__meta__'  #: the property that contains column metadata
 TABLE_META_ATTR = '__meta__'  #: the property that contains table metadata
+
+
+# SQA_FP_TYPES = {
+#     sqlalchemy.types.Float,
+#     sqlalchemy.sql.sqltypes.FLOAT,
+#     sqlalchemy.sql.sqltypes.DECIMAL,
+#     sqlalchemy.sql.sqltypes.NUMERIC,
+#     sqlalchemy.sql.sqltypes.REAL
+# }  #: SQLAlchemy floating-point numeric types
+#
+# SQA_TEXT_TYPES = {
+#     sqlalchemy.types.Text,
+#     sqlalchemy.sql.sqltypes.String,
+#     sqlalchemy.sql.sqltypes.CHAR,
+#     sqlalchemy.sql.sqltypes.NCHAR,
+#     sqlalchemy.sql.sqltypes.NVARCHAR,
+#     sqlalchemy.sql.sqltypes.TEXT,
+#     sqlalchemy.sql.sqltypes.VARCHAR
+# }  #: SQLAlchemy text/string types
+#
+# SQA_INT_TYPES = {
+#     sqlalchemy.types.Integer,
+#     sqlalchemy.types.BigInteger,
+#     sqlalchemy.sql.sqltypes.BIGINT,
+#     sqlalchemy.sql.sqltypes.INT,
+#     sqlalchemy.sql.sqltypes.INTEGER,
+#     sqlalchemy.sql.sqltypes.SMALLINT
+# }  #: SQLAlchemy floating-point numeric types
 
 
 class ConstraintException(ModlitError):
@@ -53,6 +82,50 @@ class DuplicateConstraintException(ConstraintException):
 #
 #         :py:class:`Constraint`
 #     """
+
+def _get_dtype_attr(dtype: Column, attr_name: str) -> Any or None:
+    try:
+        return getattr(dtype, attr_name)
+    except AttributeError:
+        return None
+
+
+def width(dtype) -> int or None:
+    """
+    Get the width of a SQLAlchemy text column.
+
+    :param dtype: the column
+    :return: the width (or `None` if none is specified)
+    """
+    return _get_dtype_attr(dtype, 'length')
+
+
+def precision(dtype) -> int or None:
+    """
+    Get the `scale` for a column with a decimal data type.
+
+    :param dtype: the column
+    :return: the precision or `None` if the column has no precision
+
+    .. seealso::
+
+        :py:func:`scale`
+    """
+    return _get_dtype_attr(dtype, 'precision')
+
+
+def scale(dtype) -> int or None:
+    """
+    Get the `scale` for a column with a decimal data type.
+
+    :param dtype: the column
+    :return: the scale or `None` if the column has no scale
+
+    .. seealso::
+
+        :py:func:`precision`
+    """
+    return _get_dtype_attr(dtype, 'scale')
 
 
 class _MetaDescription(ABC):
@@ -343,6 +416,52 @@ class TableMeta(_MetaDescription, _HasSynonyms):
         return self._label
 
 
+class DataTypeMeta(_MetaDescription):
+    """
+    Metadata for column data types.
+    """
+    def __init__(self,
+                 width_: int or None,
+                 precision_: int or None,
+                 scale_: int or None):
+        self._width = width_
+        self._precision = precision_
+        self._scale = scale_
+
+    @property
+    def width(self) -> int or None:
+        """
+        Get the width.
+
+        .. note::
+
+            `width` is appropriate to text types
+        """
+        return self._width
+
+    @property
+    def precision(self) -> int or None:
+        """
+        Get the precision of floating-point data types.
+
+        .. note::
+
+            `precision` is appropriate to floating-point data types
+        """
+        return self._precision
+
+    @property
+    def scale(self) -> int or None:
+        """
+        Get the scale of floating-point data types.
+
+        .. note::
+
+            `scale` is appropriate to floating-point data types
+        """
+        return self._scale
+
+
 class ColumnMeta(_MetaDescription, _HasSynonyms):
     """
     Metadata for table columns.
@@ -354,13 +473,15 @@ class ColumnMeta(_MetaDescription, _HasSynonyms):
                  nena: str = None,
                  source: Source = None,
                  target: Target = None,
-                 synonyms: Iterable[str] = None):
+                 synonyms: Iterable[str] = None,
+                 data_type_meta: DataTypeMeta = None):
         super().__init__(synonyms=synonyms)
         self._label = label if label is not None else ''
         self._description = description if description is not None else ''
         self._nena = nena
         self._source = source if source is not None else Source()
         self._target = target if target is not None else Target()
+        self._dtmeta: DataTypeMeta = data_type_meta
 
     @property
     def label(self) -> str:
@@ -407,6 +528,15 @@ class ColumnMeta(_MetaDescription, _HasSynonyms):
         """
         return self._target
 
+    @property
+    def data_type_meta(self) -> DataTypeMeta:
+        """
+        Get meta data that further describes the data type.
+
+        :return: the data type meta information
+        """
+        return self._dtmeta
+
     def get_enum(
             self,
             enum_cls: Type[Union[Requirement, Usage]]
@@ -433,6 +563,17 @@ def column(dtype: Any, meta: ColumnMeta, *args, **kwargs) -> Column:
     :return: a GeoAlchemy :py:class:`Column`
     """
     col = Column(dtype, *args, **kwargs)
+    # If the caller hasn't provided data type meta-information in the column
+    # meta info...
+    if not meta.data_type_meta:
+        # ...let's determine it for ourselves.
+        dtmeta = DataTypeMeta(
+            width_=width(dtype),
+            precision_=precision(dtype),
+            scale_=scale(dtype)
+        )
+        # Take special liberties and directly update the `ColumnMeta` object.
+        setattr(meta, '_dtmeta', dtmeta)
     col.__dict__[COLUMN_META_ATTR] = meta
     return col
 

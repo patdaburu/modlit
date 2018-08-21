@@ -167,7 +167,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
         # it appears to have metadata...
         if (isinstance(self.object, (Column, InstrumentedAttribute)) and
                 hasattr(self.object, COLUMN_META_ATTR)):
-            # Get the metadata from the column.
+            # Retrieve the column metadata.
             meta: ColumnMeta = self.object.__meta__
             # Create an image that we can put in-line with the rest of the
             # docstring.
@@ -179,6 +179,15 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
                 '',
                 f"|{img_sub}| **{meta.label}**", '',
                 meta.description, '',
+            ]
+            # Add the data type modifiers that are defined for this column.
+            for _label, _value in [
+                    ('Width', meta.data_type_meta.width,),
+                    ('Precision', meta.data_type_meta.precision,),
+            ]:
+                if _value:
+                    lines.extend([f':{_label}: {_value}', ''])
+            lines.extend([
                 '**Source**', '',
                 self.doc_enum_table(enum_cls=Requirement,
                                     meta=meta,
@@ -190,7 +199,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
                 self.doc_enum_table(enum_cls=Usage,
                                     meta=meta,
                                     excluded={Usage.NONE}), '',
-            ]
+            ])
             # If the meta-data indicates there is a related NENA field...
             if meta.nena is not None:
                 # ...we'll include it!

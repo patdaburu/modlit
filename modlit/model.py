@@ -17,7 +17,7 @@ from .modules import walk_load
 IS_MODEL_CLASS = '__model_cls__'  #: signifies a model class
 
 
-def model(label: str, synonyms: Iterable[str]=None):
+def model(label: str, synonyms: Iterable[str] = None):
     """
     Use this decorator to provide meta-data for your model class.
 

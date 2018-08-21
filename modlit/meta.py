@@ -10,10 +10,11 @@ This module contains metadata objects to help with inline documentation of the
 model.
 """
 from abc import ABC
-from enum import IntFlag
+from CaseInsensitiveDict import CaseInsensitiveDict
+from enum import Enum, IntFlag
 import re
 from functools import reduce
-from typing import cast, Any, Iterable, Type, Union
+from typing import cast, Any, Iterable, NamedTuple, Tuple, Type, Union
 from orderedset import OrderedSet
 from sqlalchemy import Column
 #import sqlalchemy.sql.sqltypes
@@ -462,6 +463,77 @@ class DataTypeMeta(_MetaDescription):
         return self._scale
 
 
+class ValueDomainItem(NamedTuple):
+    """
+    Describes a value within a value domain.
+
+    .. seealso::
+
+        :py:class:`ValueDomain`
+    """
+    value: Any  #: the value
+    description: str  #: a description of the value
+
+
+class ValueDomain(object):
+    """
+    A value domain represents a set of legal values for a column.
+    """
+    def __init__(self,
+                 *items: ValueDomainItem or Tuple or str or int or float):
+        # Create a set to hold the value domain items (which contain the value,
+        # but also its description.)
+        _vdis: set = set()
+        # The items may be a mish-mosh, so let's deal with each case...
+        for item in items:
+            if not item:
+                continue  # Skip empty values.
+            elif isinstance(item, ValueDomainItem):
+                # If it's a fully-formed `ValueDomainItem`, great!
+                # Use it as is.
+                _vdis.add(item)
+            elif isinstance(item, Tuple):
+                # It may also just be a plain tuple in the form
+                # ('value', 'description') where the description is optional.
+                _vdis.add(ValueDomainItem(*item))
+            else:  # Or it might just be a value by itself.  Also fine.
+                _vdis.add(item)
+        # Create a dictionary that indexes the value-domain-items by their
+        # names.
+        self._vtable = {
+            vdi.value: vdi for vdi in _vdis
+        }
+        # Create another index for only the string values that doesn't worry
+        # about character casing.  (This is extra overhead for performance:
+        # In cases where callers want the defined value, it should be in the
+        # `_vtable` dictionary.  But if we miss a lookup for a string value,
+        # we can *also* check here.)
+        self._vtable_nocase = CaseInsensitiveDict({
+            vdi.value: vdi for vdi in _vdis if isinstance(vdi.value, str)
+        })
+
+    def describe(self, value: str or int or float):
+        """
+        Get the description provided for a given value.
+
+        :param value: the value
+        :return: the description
+        :raises KeyError: if the value is not defined for the domain
+        """
+        try:
+            return self._vtable[value].description
+        except KeyError:
+            return self._vtable_nocase[value].description
+
+    def __contains__(self, item):
+        # First, check for the item in the regular table.  If we don't find
+        # it there, punt and look for it in the case-insensitive collection.
+        return item in self._vtable or item in self._vtable_nocase
+
+    def __iter__(self):
+        return iter(self._vtable.keys())
+
+
 class ColumnMeta(_MetaDescription, _HasSynonyms):
     """
     Metadata for table columns.
@@ -474,7 +546,10 @@ class ColumnMeta(_MetaDescription, _HasSynonyms):
                  source: Source = None,
                  target: Target = None,
                  synonyms: Iterable[str] = None,
-                 data_type_meta: DataTypeMeta = None):
+                 data_type_meta: DataTypeMeta = None,
+                 domain: ValueDomain or Iterable[
+                     ValueDomainItem or Tuple or str or int or float
+                 ] = None):
         super().__init__(synonyms=synonyms)
         self._label = label if label is not None else ''
         self._description = description if description is not None else ''
@@ -482,6 +557,10 @@ class ColumnMeta(_MetaDescription, _HasSynonyms):
         self._source = source if source is not None else Source()
         self._target = target if target is not None else Target()
         self._dtmeta: DataTypeMeta = data_type_meta
+        self._domain: ValueDomain = (
+            domain if isinstance(domain, ValueDomain)
+            else ValueDomain(*domain)
+        ) if domain else None
 
     @property
     def label(self) -> str:
@@ -536,6 +615,16 @@ class ColumnMeta(_MetaDescription, _HasSynonyms):
         :return: the data type meta information
         """
         return self._dtmeta
+
+    @property
+    def domain(self) -> ValueDomain:
+        """
+        Get the enumeration type that expresses the domain.
+
+        :return: the data type enumeration that expresses the domain of
+            legal values
+        """
+        return self._domain
 
     def get_enum(
             self,
@@ -594,8 +683,8 @@ def get_table_meta(model) -> TableMeta or None:
 
 def get_column_meta(col: Column) -> ColumnMeta or None:
     """
-    Retrieve the column metadata from a column.  If there is no column metadata, the function
-    return `None`.
+    Retrieve the column metadata from a column.  If there is no column metadata,
+    the function return `None`.
 
     :param col: the column
     :return: the column metadata

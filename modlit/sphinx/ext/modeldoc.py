@@ -187,29 +187,46 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
             ]:
                 if _value:
                     lines.extend([f':{_label}: {_value}', ''])
+
+            # Add the domain values.
+            if meta.domain:
+                domain_lines = ['**Domain**', '']
+                domain_lines.extend([
+                    f":{value}: {meta.domain.describe(value)}\n"
+                    for value in meta.domain
+                ])
+                lines.extend(domain_lines)
+
             lines.extend([
                 '**Source**', '',
                 self.doc_enum_table(enum_cls=Requirement,
                                     meta=meta,
-                                    excluded={Requirement.NONE}), '',
-                '**Target**', '',
-                f':Calculated: {get_bool_mark(meta.target.calculated)}', '',
-                f':Guaranteed: {get_bool_mark(meta.target.guaranteed)}', '',
-                '**Usage**', '',
-                self.doc_enum_table(enum_cls=Usage,
-                                    meta=meta,
-                                    excluded={Usage.NONE}), '',
+                                    excluded={Requirement.NONE}), ''
             ])
-            # If the meta-data indicates there is a related NENA field...
-            if meta.nena is not None:
-                # ...we'll include it!
-                lines.extend([f':NENA: *{meta.nena}*', ''])
+
             # If there are synonyms...
             synonyms = sorted(meta.synonyms)
             if synonyms:
                 lines.extend([
                     f":Synonyms: *{', '.join(synonyms)}*", ''
                 ])
+
+            lines.extend([
+                '**Target**', '',
+                f':Calculated: {get_bool_mark(meta.target.calculated)}', '',
+                f':Guaranteed: {get_bool_mark(meta.target.guaranteed)}', ''
+            ])
+            # If the meta-data indicates there is a related NENA field...
+            if meta.nena is not None:
+                # ...we'll include it!
+                lines.extend([f':NENA: *{meta.nena}*', ''])
+
+            lines.extend([
+                '**Usage**', '',
+                self.doc_enum_table(enum_cls=Usage,
+                                    meta=meta,
+                                    excluded={Usage.NONE}), '',
+            ])
             # Put it all together.
             rst = '\n'.join(lines)
             # OK, ship it out!

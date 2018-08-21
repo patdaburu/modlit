@@ -40,6 +40,7 @@ setup(
     # 'numpy>=1.13.3,<2',
     # 'measurement>=1.8.0,<2'
     'addict>=2.1.3,<3',
+    'CaseInsensitiveDict==1.0.0',
     'flask-restplus>=0.11.0,<1',
     'marshmallow>=2.15.3,<3',
     'orderedset>=2.0.1,<3',

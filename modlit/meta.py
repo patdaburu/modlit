@@ -10,81 +10,162 @@ This module contains metadata objects to help with inline documentation of the
 model.
 """
 from abc import ABC
-from CaseInsensitiveDict import CaseInsensitiveDict
 from enum import Enum, IntFlag
 import re
 from functools import reduce
-from typing import cast, Any, Iterable, NamedTuple, Tuple, Type, Union
+from typing import cast, Any, Dict, Iterable, NamedTuple, Tuple, Type, Union
 from orderedset import OrderedSet
+from CaseInsensitiveDict import CaseInsensitiveDict
 from sqlalchemy import Column
-#import sqlalchemy.sql.sqltypes
+import sqlalchemy.sql.sqltypes
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from .errors import ModlitError
+from .types import GUID
 
 
 COLUMN_META_ATTR = '__meta__'  #: the property that contains column metadata
 TABLE_META_ATTR = '__meta__'  #: the property that contains table metadata
 
 
-# SQA_FP_TYPES = {
-#     sqlalchemy.types.Float,
-#     sqlalchemy.sql.sqltypes.FLOAT,
-#     sqlalchemy.sql.sqltypes.DECIMAL,
-#     sqlalchemy.sql.sqltypes.NUMERIC,
-#     sqlalchemy.sql.sqltypes.REAL
-# }  #: SQLAlchemy floating-point numeric types
-#
-# SQA_TEXT_TYPES = {
-#     sqlalchemy.types.Text,
-#     sqlalchemy.sql.sqltypes.String,
-#     sqlalchemy.sql.sqltypes.CHAR,
-#     sqlalchemy.sql.sqltypes.NCHAR,
-#     sqlalchemy.sql.sqltypes.NVARCHAR,
-#     sqlalchemy.sql.sqltypes.TEXT,
-#     sqlalchemy.sql.sqltypes.VARCHAR
-# }  #: SQLAlchemy text/string types
-#
-# SQA_INT_TYPES = {
-#     sqlalchemy.types.Integer,
-#     sqlalchemy.types.BigInteger,
-#     sqlalchemy.sql.sqltypes.BIGINT,
-#     sqlalchemy.sql.sqltypes.INT,
-#     sqlalchemy.sql.sqltypes.INTEGER,
-#     sqlalchemy.sql.sqltypes.SMALLINT
-# }  #: SQLAlchemy floating-point numeric types
+SQA_UUID_TYPES = {
+    GUID
+}  #: unique identifier types
 
 
-class ConstraintException(ModlitError):
-    """
-    Raised when errors pertaining to constraints are encountered.
+SQA_FP_TYPES = {
+    sqlalchemy.types.Float,
+    sqlalchemy.sql.sqltypes.FLOAT,
+    sqlalchemy.sql.sqltypes.DECIMAL,
+    sqlalchemy.sql.sqltypes.NUMERIC,
+    sqlalchemy.sql.sqltypes.REAL
+}  #: SQLAlchemy floating-point numeric types
 
-    ..seealso::
+SQA_TEXT_TYPES = {
+    sqlalchemy.types.Text,
+    sqlalchemy.sql.sqltypes.String,
+    sqlalchemy.sql.sqltypes.CHAR,
+    sqlalchemy.sql.sqltypes.NCHAR,
+    sqlalchemy.sql.sqltypes.NVARCHAR,
+    sqlalchemy.sql.sqltypes.TEXT,
+    sqlalchemy.sql.sqltypes.VARCHAR
+}  #: SQLAlchemy text/string types
 
-        :py:class:`Constraint`
-    """
-    pass
+SQA_INT_TYPES = {
+    sqlalchemy.types.Integer,
+    sqlalchemy.types.BigInteger,
+    sqlalchemy.sql.sqltypes.BIGINT,
+    sqlalchemy.sql.sqltypes.INT,
+    sqlalchemy.sql.sqltypes.INTEGER,
+    sqlalchemy.sql.sqltypes.SMALLINT
+}  #: SQLAlchemy floating-point numeric types
+
+SQA_DATE_TYPES = {
+    sqlalchemy.types.Date,
+    sqlalchemy.sql.sqltypes.DATE,
+}  #: SQLAlchemy date types
+
+SQA_TIME_TYPES = {
+    sqlalchemy.types.Time,
+    sqlalchemy.sql.sqltypes.TIME,
+}  #: SQLAlchemy time types
+
+SQA_DATETIME_TYPES = {
+    sqlalchemy.types.DateTime,
+    sqlalchemy.sql.sqltypes.DATETIME,
+}  #: SQLAlchemy date/time types
 
 
-class DuplicateConstraintException(ConstraintException):
-    """
-    Raised when duplicate, potentially conflicting constraints are encountered.
-
-    ..seealso::
-
-        :py:class:`Constraint`
-    """
-
-
-# class InvalidConstraintException(ConstraintException):
+# class ConstraintException(ModlitError):
 #     """
-#     Raised when a constraint is applied to an inappropriate type.
+#     Raised when errors pertaining to constraints are encountered.
+#
+#     ..seealso::
+#
+#         :py:class:`Constraint`
+#     """
+#     pass
+#
+#
+# class DuplicateConstraintException(ConstraintException):
+#     """
+#     Raised when duplicate, potentially conflicting constraints are encountered.
 #
 #     ..seealso::
 #
 #         :py:class:`Constraint`
 #     """
 
+class UnsupportedSqlAlchemyTypeException(ModlitError):
+    """
+    Raised when an unsupported SQLAlchemy data type is encountered.
+    """
+    def __init__(self, message: str, sqa_type: type):
+        super().__init__(message=message)
+        self._sqa_type = sqa_type
+
+    @property
+    def sqa_type(self) -> type:
+        """Get the unsupported type."""
+        return self._sqa_type
+
+
+class DeclarativeDataType(Enum):
+    """
+    A generalized declarative set of supported data types.
+    """
+    UUID = 'UUID'  #: universally-unique identifiers
+    TEXT = 'TEXT'  #: text data (strings, characters, etc.)
+    INTEGER = 'INTEGER'  #: integer values
+    FLOAT = 'FLOAT'  #: floating-point values
+    DATE = 'DATE',  #: dates
+    TIME = 'TIME',  #: times
+    DATETIME = 'DATETIME'  #: date and time
+
+    @staticmethod
+    def from_sqa_type(sqa_type: type) -> 'DeclarativeDataType':
+        """
+        Get the generalized declared data type for a given SQLAlchemy type.
+
+        :param sqa_type: the SQLAlchemy type
+        :return: the generalized declared data type
+        :raises UnsupportedSqlAlchemyTypeException: if the SQLAlchemy type is
+            not mapped to a generalized declarative data type
+        """
+        _sqa_type = sqa_type if isinstance(sqa_type, type) else type(sqa_type)
+        try:
+            return _SQA_DDT[_sqa_type]
+        except KeyError:
+            raise UnsupportedSqlAlchemyTypeException(
+                message=f"An unsupported type was encountered: {_sqa_type}",
+                sqa_type=sqa_type
+            )
+
+
+# Create an internal dictionary that maps all of the supported SQLAlchemy data
+# types to their respective, generalized declarative types
+_SQA_DDT: Dict[type, DeclarativeDataType] = {}
+# Populate the _SQA_DDT dictionary.
+for decl_, set_ in [
+    (DeclarativeDataType.UUID, SQA_UUID_TYPES),
+    (DeclarativeDataType.TEXT, SQA_TEXT_TYPES,),
+    (DeclarativeDataType.INTEGER, SQA_INT_TYPES,),
+    (DeclarativeDataType.FLOAT, SQA_FP_TYPES,),
+    (DeclarativeDataType.DATE, SQA_DATE_TYPES,),
+    (DeclarativeDataType.TIME, SQA_TIME_TYPES,),
+    (DeclarativeDataType.DATETIME, SQA_DATETIME_TYPES),
+]:
+    for sqa_type in set_:
+        _SQA_DDT[sqa_type] = decl_
+
+
 def _get_dtype_attr(dtype: Column, attr_name: str) -> Any or None:
+    """
+    Get an attribute from a data type class.
+
+    :param dtype: the data type class
+    :param attr_name: the attribute name
+    :return: the value (or `None` if no such value is found)
+    """
     try:
         return getattr(dtype, attr_name)
     except AttributeError:
@@ -422,12 +503,23 @@ class DataTypeMeta(_MetaDescription):
     Metadata for column data types.
     """
     def __init__(self,
+                 declarative: DeclarativeDataType,
                  width_: int or None,
                  precision_: int or None,
                  scale_: int or None):
+        self._declarative: DeclarativeDataType = declarative
         self._width = width_
         self._precision = precision_
         self._scale = scale_
+
+    @property
+    def declarative(self) -> DeclarativeDataType:
+        """
+        Get the generalized, declarative data type.
+
+        :return: the generalized, declarative data type
+        """
+        return self._declarative
 
     @property
     def width(self) -> int or None:
@@ -656,7 +748,9 @@ def column(dtype: Any, meta: ColumnMeta, *args, **kwargs) -> Column:
     # meta info...
     if not meta.data_type_meta:
         # ...let's determine it for ourselves.
+        # Figure out what the declarative data type is.
         dtmeta = DataTypeMeta(
+            declarative=DeclarativeDataType.from_sqa_type(dtype),
             width_=width(dtype),
             precision_=precision(dtype),
             scale_=scale(dtype)

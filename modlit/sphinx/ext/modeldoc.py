@@ -31,7 +31,8 @@ from ...model import IS_MODEL_CLASS
 from ...meta import (
     ColumnMeta, COLUMN_META_ATTR,
     TableMeta, TABLE_META_ATTR,
-    Requirement, Usage
+    Requirement, Usage,
+    DeclarativeDataType
 )
 
 
@@ -169,6 +170,15 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
                 hasattr(self.object, COLUMN_META_ATTR)):
             # Retrieve the column metadata.
             meta: ColumnMeta = self.object.__meta__
+            # Get the declarative type so we can modify it before we put it
+            # into the document.
+            ddt = meta.data_type_meta.declarative
+            # We want to title-case it, unless it's UUID (which is an acronym).
+            ddts = (
+                ddt.value
+                if ddt == DeclarativeDataType.UUID
+                else titlecase(ddt.value)
+            )
             # Create an image that we can put in-line with the rest of the
             # docstring.
             img_sub = str(uuid.uuid4()).replace('-', '')
@@ -179,6 +189,7 @@ class ColumnAttributeDocumenter(AttributeDocumenter):
                 '',
                 f"|{img_sub}| **{meta.label}**", '',
                 meta.description, '',
+                f':Type: {ddts}', ''
             ]
             # Add the data type modifiers that are defined for this column.
             for _label, _value in [

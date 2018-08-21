@@ -11,9 +11,12 @@ model.
 """
 from abc import ABC
 from enum import Enum, IntFlag
+import inspect
 import re
 from functools import reduce
-from typing import cast, Any, Dict, Iterable, NamedTuple, Tuple, Type, Union
+from typing import (
+    cast, Any, Dict, Iterable, List, NamedTuple, Tuple, Type, Union
+)
 from orderedset import OrderedSet
 from CaseInsensitiveDict import CaseInsensitiveDict
 from sqlalchemy import Column
@@ -190,11 +193,38 @@ def scale(dtype) -> int or None:
     return _get_dtype_attr(dtype, 'scale')
 
 
+class _Exportable(NamedTuple):
+    """
+    Define an attribute of a meta-description that can be exported.
+    """
+    attr_name: str  #: the name of the class attribute to be exported
+    export_as: str  #: the name under which to export the attribute
+
+
 class _MetaDescription(ABC):
     """
     This is base class for objects that provide meta-data descriptions.
     """
-    pass
+    __exports__: List[_Exportable or Tuple] = [
+
+    ]  #: the attribute names that are exported
+
+    def export(self) -> Dict[str, Any] or None:
+        """
+        Export the meta-data as a dictionary of values.
+
+        :return: a dictionary of descriptive values (or `None`)
+        """
+        # Collect the exportable definitions.
+        exports = [
+            ex if isinstance(ex, _Exportable)
+            else _Exportable(*ex)
+            for ex in self.__exports__
+        ]
+        # Create a dictionary.
+        return {
+            ex.export_as: getattr(self, ex.attr_name) for ex in exports
+        }
 
 
 class _Synonyms(object):
@@ -330,6 +360,20 @@ class Source(_MetaDescription):
         """
         return self._synonyms.is_synonym(name)
 
+    def export(self) -> Dict[str, str] or None:
+        """
+        Export the meta-data as a dictionary of values.
+
+        :return: a dictionary of descriptive values (or `None`)
+        """
+        _export = {}
+        if self._requirement != Requirement.NONE:
+            _export['requirement'] = self._requirement.value
+        _synonyms = list(self._synonyms.synonyms)
+        if _synonyms:
+            _export['synonyms'] = _synonyms
+        return _export if _export else None
+
 
 class Usage(IntFlag):
     """
@@ -344,6 +388,10 @@ class Target(_MetaDescription):
     """
     'Target' information describes contracts with data consumers.
     """
+    __exports__ = [
+        ('_guaranteed', 'guaranteed'),
+        ('_calculated', 'calculated')
+    ]
 
     def __init__(self,
                  guaranteed: bool = False,
@@ -393,89 +441,17 @@ class Target(_MetaDescription):
         """
         return self._usage
 
+    def export(self) -> Dict[str, str] or None:
+        """
+        Export the meta-data as a dictionary of values.
 
-class ModelMeta(_MetaDescription):
-    """
-    Metadata for entire data models.
-    """
-
-    def __init__(self,
-                 title: str,
-                 slug: str,
-                 author_name: str,
-                 author_email: str,
-                 version: str):
+        :return: a dictionary of descriptive values (or `None`)
         """
-
-        :param title: a friendly, human-readable title for the model
-        :param slug: a short identifier for the model
-        :param author_name: the name of the model's author
-        :param author_email: the model author's email address
-        :param version:
-        """
-        self._title = title
-        self._slug = slug
-        self._author_name = author_name
-        self._author_email = author_email
-        self._version = version
-
-    def get_urn(self) -> str:
-        """
-        Get the uniform resource name (URN) that identifies the model.
-        """
-        return f'urn:com.geo-comm.modlit:{self._slug}:{self._version}'
-
-    @property
-    def title(self) -> str:
-        """
-        Get the model's friendly, descriptive, human-readable title.
-        """
-        return self._title
-
-    @property
-    def author_name(self) -> str:
-        """
-        Get the model author's name.
-        """
-        return self._author_name
-
-    @property
-    def author_email(self) -> str:
-        """
-        Get the model author's email.
-        """
-        return self._author_name
-
-    @property
-    def version(self) -> str:
-        """
-        Get the model version.
-        """
-        return self._version
-
-
-class TableMeta(_MetaDescription, _HasSynonyms):
-    """
-    Metadata for tables.
-    """
-    def __init__(self,
-                 label: str = None,
-                 synonyms: Iterable[str] = None):
-        """
-
-        :param label: the human-friendly label for the column
-        """
-        super().__init__(synonyms=synonyms)
-        self._label = label
-
-    @property
-    def label(self) -> str:
-        """
-        Get the human-friendly label for the column.
-
-        :return: the human-friendly label
-        """
-        return self._label
+        _exports = super().export()
+        usages = [u for u in Usage if u & self._usage]
+        if usages:
+            _exports['usage'] = usages
+        return _exports
 
 
 class DataTypeMeta(_MetaDescription):
@@ -724,6 +700,116 @@ class ColumnMeta(_MetaDescription, _HasSynonyms):
         if enum_cls == Usage:
             return self._target.usage
         return None
+
+
+class TableMeta(_MetaDescription, _HasSynonyms):
+    """
+    Metadata for tables.
+    """
+    def __init__(self,
+                 label: str = None,
+                 synonyms: Iterable[str] = None):
+        """
+
+        :param label: the human-friendly label for the column
+        """
+        super().__init__(synonyms=synonyms)
+        self._label = label
+
+    @property
+    def label(self) -> str:
+        """
+        Get the human-friendly label for the column.
+
+        :return: the human-friendly label
+        """
+        return self._label
+
+
+class _TableColumnsConjunction(object):
+
+    def __init__(self,
+                 table_meta: TableMeta,
+                 columns: Dict[str, ColumnMeta]):
+        self.table_meta = table_meta
+        self.columns = columns
+
+
+class ModelMeta(_MetaDescription):
+    """
+    Metadata for entire data models.
+    """
+    def __init__(self,
+                 title: str,
+                 slug: str,
+                 namespace: str,
+                 version: str,
+                 *models: Type):
+        """
+
+        :param title: a friendly, human-readable title for the model
+        :param slug: a short identifier for the model
+        :param version:
+        """
+        self._title = title
+        self._slug = slug
+        self._namespace = namespace
+        self._version = version
+        self._table_metas: List[_TableColumnsConjunction] = []
+        for model in models:
+            self._add_model(model)
+
+    def urn(self) -> str:
+        """
+        Get the uniform resource name (URN) that identifies the model.
+        """
+        return re.sub(
+            r'[^\w\-\_\.\:]',
+            '_',
+            f'urn:{self._namespace}:{self._slug}:{self._version}'
+        ).lower()
+
+    @property
+    def title(self) -> str:
+        """
+        Get the model's friendly, descriptive, human-readable title.
+        """
+        return self._title
+
+    @property
+    def version(self) -> str:
+        """
+        Get the model version.
+        """
+        return self._version
+
+    def _add_model(self, model: Type):
+        # Get the table metadata from the model class.
+        table_meta: TableMeta = get_table_meta(model)
+        if not table_meta:
+            raise RuntimeError('The model has no table metadata!')
+        # Create a dictionary to contain the fields ('columns') meta data
+        # that we'll pull out of the model class.
+        columns: Dict[str, ColumnMeta] = {}
+        # We think this is a SQLAlchemy class.  Moreover, we expect it's a
+        # modlit model.  So, we're interested in attributes that appear to be
+        # SQLAlchemy `InstrumentedAttribute` instances that also have column
+        # metadata attached.
+        for attr_, column_ in [
+            member for member in inspect.getmembers(model)
+            if isinstance(member[1], InstrumentedAttribute)
+               and has_column_meta(member[1])
+        ]:
+            col_meta = get_column_meta(column_)
+            columns[attr_] = col_meta
+        # Add this conjunction of table-meta data and fields (indexed by
+        # their names) to the list.
+        self._table_metas.append(
+            _TableColumnsConjunction(
+                table_meta=table_meta,
+                columns=columns
+            )
+        )
 
 
 def column(dtype: Any, meta: ColumnMeta, *args, **kwargs) -> Column:

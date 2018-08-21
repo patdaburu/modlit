@@ -15,6 +15,9 @@ lint:
 test: lint
 	py.test --cov . tests/
 
+quicktest:
+	py.test --cov . tests/
+
 coverage: test
 	mkdir -p docs/build/html
 	coverage html

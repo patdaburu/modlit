@@ -9,9 +9,9 @@
 This module contains general members to help you work with the model.
 """
 import inspect
-from typing import Iterable, List
-from .meta import Column, COLUMN_META_ATTR, TableMeta, TABLE_META_ATTR
 from .modules import walk_load
+
+from .meta import *
 
 
 IS_MODEL_CLASS = '__model_cls__'  #: signifies a model class

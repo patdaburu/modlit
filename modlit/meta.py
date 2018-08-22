@@ -229,14 +229,17 @@ class _MetaDescription(ABC):
                 raise RuntimeError(f'Unknown export definition: {export}')
 
         # Create the dictionary to hold the exported values.
-        exported = {}
+        exported = dict()
         for export in exports:
             value = getattr(self, export.attr_name)
             if callable(value):
                 value = value()
             exported[export.export_as] = value
-        # Return what we got.
-        return exported
+        # Remove any keys that don't have values and return the result.
+        return {
+            k: v for k, v in exported.items()
+            if v or isinstance(v, bool)
+        }
 
 
 class _Synonyms(object):
@@ -344,15 +347,13 @@ class Source(_MetaDescription):
     """
 
     def __init__(self,
-                 requirement: Requirement = Requirement.NONE,
-                 synonyms: Iterable[str] = None):
+                 requirement: Requirement = Requirement.NONE):
         """
 
         :param requirement: the source contract
         :param synonyms: name patterns that may be used to detect this source
         """
         self._requirement: Requirement = requirement
-        self._synonyms = _Synonyms(synonyms)
 
     @property
     def requirement(self) -> Requirement:
@@ -363,14 +364,14 @@ class Source(_MetaDescription):
         """
         return self._requirement
 
-    def is_synonym(self, name: str):
-        """
-        Is a given name a synonym for this source column?
-
-        :param name: the name to test
-        :return: `True` if the name appears to be a synonym, otherwise `False`
-        """
-        return self._synonyms.is_synonym(name)
+    # def is_synonym(self, name: str):
+    #     """
+    #     Is a given name a synonym for this source column?
+    #
+    #     :param name: the name to test
+    #     :return: `True` if the name appears to be a synonym, otherwise `False`
+    #     """
+    #     return self._synonyms.is_synonym(name)
 
     def export(self) -> Dict[str, str] or None:
         """
@@ -381,9 +382,6 @@ class Source(_MetaDescription):
         _export = {}
         if self._requirement != Requirement.NONE:
             _export['requirement'] = self._requirement.value
-        _synonyms = list(self._synonyms.synonyms)
-        if _synonyms:
-            _export['synonyms'] = _synonyms
         return _export if _export else None
 
 
@@ -460,7 +458,8 @@ class Target(_MetaDescription):
         :return: a dictionary of descriptive values (or `None`)
         """
         _exports = super().export()
-        usages = [u for u in Usage if u & self._usage]
+        # Create a list of the names of the usage flags.
+        usages = [u.name for u in Usage if u & self._usage]
         if usages:
             _exports['usage'] = usages
         return _exports
@@ -470,6 +469,13 @@ class DataTypeMeta(_MetaDescription):
     """
     Metadata for column data types.
     """
+
+    __exports__ = [
+        ('_width', 'width'),
+        ('_precision', 'precision'),
+        ('_scale', 'scale')
+    ]
+
     def __init__(self,
                  declarative: DeclarativeDataType,
                  width_: int or None,
@@ -532,6 +538,21 @@ class DataTypeMeta(_MetaDescription):
             `scale` is appropriate to floating-point data types
         """
         return self._scale
+
+    def export(self) -> Dict[str, Any] or None:
+        """
+        Export the meta-data as a dictionary of values.
+
+        :return: a dictionary of descriptive values (or `None`)
+        """
+        exported = super().export()
+        # Always add the declarative type name.
+        exported['type'] = self.declarative.name
+        # If the primary key flag is `True`, we'll include it.
+        # (Otherwise, we won't.)
+        if self._primary_key:
+            exported['primary_key'] = True
+        return exported
 
 
 class ValueDomainItem(NamedTuple):
@@ -609,6 +630,11 @@ class ColumnMeta(_MetaDescription, _HasSynonyms):
     """
     Metadata for table columns.
     """
+    __exports__ = [
+        ('_label', 'label'),
+        ('_description', 'description'),
+        ('_nena', 'nena')
+    ]
 
     def __init__(self,
                  label: str = None,
@@ -713,6 +739,31 @@ class ColumnMeta(_MetaDescription, _HasSynonyms):
             return self._target.usage
         return None
 
+    def export(self) -> Dict[str, Any] or None:
+        """
+        Export the meta-data as a dictionary of values.
+
+        :return: a dictionary of descriptive values (or `None`)
+        """
+        # Let the superclass do the basic stuff.
+        exported = super().export()
+        # Add the data type.
+        exported['data'] = self.data_type_meta.export()
+        # Add the enumerated synonyms as a list.
+        _synonyms = list(self.synonyms)
+        if _synonyms:
+            exported['synonyms'] = _synonyms
+        # Add the source export (if it isn't empty).
+        source_export = self.source.export()
+        if source_export:
+            exported['source'] = source_export
+        # Add the target export (if it isn't empty).
+        target_export = self.target.export()
+        if target_export:
+            exported['target'] = target_export
+        # That's our export.
+        return exported
+
 
 class _TableMeta(_MetaDescription, _HasSynonyms):
     """
@@ -727,6 +778,12 @@ class _TableMeta(_MetaDescription, _HasSynonyms):
 
         :py:class:`TableMeta`
     """
+
+    __exports__ = [
+        ('_tablename', 'tablename'),
+        ('_label', 'label')
+    ]
+
     def __init__(self,
                  tablename: str,
                  label: str = None,
@@ -757,6 +814,21 @@ class _TableMeta(_MetaDescription, _HasSynonyms):
         """
         return self._tablename
 
+    def export(self) -> Dict[str, Any] or None:
+        """
+        Export the meta-data as a dictionary of values.
+
+        :return: a dictionary of descriptive values (or `None`)
+        """
+        # Let the superclass do the basic stuff.
+        exported = super().export()
+        # Add the enumerated synonyms as a list.
+        _synonyms = list(self.synonyms)
+        if _synonyms:
+            exported['synonyms'] = _synonyms
+        # That's our export.
+        return exported
+
 
 class TableMeta(_TableMeta):
     """
@@ -774,8 +846,18 @@ class TableMeta(_TableMeta):
             columns if columns else {}
         )
 
-    def add_column(self, name: str, column_meta: ColumnMeta):
-        self._columns[name] = column_meta
+    def export(self) -> Dict[str, Any] or None:
+        """
+        Export the meta-data as a dictionary of values.
+
+        :return: a dictionary of descriptive values (or `None`)
+        """
+        # Let the superclass do the basic stuff.
+        exported = super().export()
+        exported['columns'] = {
+            cn: cm.export() for cn, cm in self._columns.items()
+        }
+        return exported
 
 
 class ModelMeta(_MetaDescription):
@@ -833,6 +915,18 @@ class ModelMeta(_MetaDescription):
         Get the model version.
         """
         return self._version
+
+    def export(self) -> Dict[str, Any] or None:
+        """
+        Export the meta-data as a dictionary of values.
+
+        :return: a dictionary of descriptive values (or `None`)
+        """
+        exported = super().export()
+        exported['tables'] = {
+            tn: tm.export() for tn, tm in self._tables.iteritems()
+        }
+        return exported
 
 
 def column(dtype: Any, meta: ColumnMeta, *args, **kwargs) -> Column:

@@ -364,15 +364,6 @@ class Source(_MetaDescription):
         """
         return self._requirement
 
-    # def is_synonym(self, name: str):
-    #     """
-    #     Is a given name a synonym for this source column?
-    #
-    #     :param name: the name to test
-    #     :return: `True` if the name appears to be a synonym, otherwise `False`
-    #     """
-    #     return self._synonyms.is_synonym(name)
-
     def export(self) -> Dict[str, str] or None:
         """
         Export the meta-data as a dictionary of values.
@@ -398,11 +389,6 @@ class Target(_MetaDescription):
     """
     'Target' information describes contracts with data consumers.
     """
-    __exports__ = [
-        ('_guaranteed', 'guaranteed'),
-        ('_calculated', 'calculated')
-    ]
-
     def __init__(self,
                  guaranteed: bool = False,
                  calculated: bool = False,
@@ -457,12 +443,19 @@ class Target(_MetaDescription):
 
         :return: a dictionary of descriptive values (or `None`)
         """
-        _exports = super().export()
+        exported = super().export()
+        # Add flag values (provided they are `True`).
+        if self.calculated:
+            exported['calculated'] = True
+        if self.guaranteed:
+            exported['guaranteed'] = True
         # Create a list of the names of the usage flags.
         usages = [u.name for u in Usage if u & self._usage]
         if usages:
-            _exports['usage'] = usages
-        return _exports
+            exported['usage'] = usages
+        # If there are values to return, return 'em.  Otherwise there is
+        # nothing to report.
+        return exported if exported else None
 
 
 class DataTypeMeta(_MetaDescription):

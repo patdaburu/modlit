@@ -6,7 +6,7 @@
 from parameterized import parameterized
 import unittest
 from modlit.meta import (
-    ColumnMeta, Requirement, Source, TableMeta, Target, Usage,
+    ColumnMeta, Requirement, Source, _TableMeta, Target, Usage,
     _MetaDescription, _Synonyms
 )
 
@@ -306,7 +306,7 @@ class TestTableMetaSuite(unittest.TestCase):
     @parameterized.expand([
         (
                 'Label', ['alpha', 'beta', 'gamma'],
-                TableMeta(label='Label', synonyms=['alpha', 'beta', 'gamma'])
+                _TableMeta(label='Label', synonyms=['alpha', 'beta', 'gamma'])
         ),
     ])
     def test_init_expectedValues(self,
@@ -324,10 +324,10 @@ class TestTableMetaSuite(unittest.TestCase):
         :type synonyms: Iterable[str]
         :param expected: a table-meta object equal to the one constructed from
             the supplied arguments
-        :type expected: :py:class:`TableMeta`
+        :type expected: :py:class:`_TableMeta`
         """
         # Arrange/Act.
-        meta = TableMeta(label=label, synonyms=synonyms)
+        meta = _TableMeta(label=label, synonyms=synonyms)
         # Assert.
 #        self.assertEqual(expected, meta)
         # To complete coverage...

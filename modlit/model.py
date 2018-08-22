@@ -9,12 +9,29 @@
 This module contains general members to help you work with the model.
 """
 import inspect
+from typing import Iterable, List
+from .meta import (
+    Column, COLUMN_META_ATTR,
+    _TableMeta, TABLE_META_ATTR
+)
 from .modules import walk_load
-
-from .meta import *
 
 
 IS_MODEL_CLASS = '__model_cls__'  #: signifies a model class
+TABLENAME_ATTR = '__tablename__'  #: the attribute that defines the table name
+
+
+def get_table_name(model: type) -> str or None:
+    """
+    Get the SQLAlchemy table name from a model class.
+
+    :param model: the model class
+    :return: the defined table name
+    """
+    try:
+        return getattr(model, TABLENAME_ATTR)
+    except AttributeError:
+        return None
 
 
 def model(label: str, synonyms: Iterable[str] = None):
@@ -39,8 +56,10 @@ def model(label: str, synonyms: Iterable[str] = None):
             # ...update it now.
             setattr(cls,
                     TABLE_META_ATTR,
-                    TableMeta(label=label,
-                              synonyms=synonyms))
+                    _TableMeta(
+                        tablename=get_table_name(cls),
+                        label=label,
+                        synonyms=synonyms))
 
         # Let's go through every class in the hierarchy...
         for mro in inspect.getmro(cls):

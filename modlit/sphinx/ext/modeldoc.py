@@ -30,7 +30,7 @@ from ...base import ModelMixin
 from ...model import IS_MODEL_CLASS
 from ...meta import (
     ColumnMeta, COLUMN_META_ATTR,
-    TableMeta, TABLE_META_ATTR,
+    _TableMeta, TABLE_META_ATTR,
     Requirement, Usage,
     DeclarativeDataType
 )
@@ -130,7 +130,7 @@ class ModelClassDocumenter(ClassDocumenter):
                 f'{titlecase(self.object.geometry_type().name)}', ''
             ])
 
-        table_meta: TableMeta = getattr(self.object, TABLE_META_ATTR)
+        table_meta: _TableMeta = getattr(self.object, TABLE_META_ATTR)
         synonyms = sorted(list(table_meta.synonyms))
         if synonyms:
             lines[0].extend([

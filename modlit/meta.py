@@ -205,7 +205,7 @@ class _MetaDescription(ABC):
     """
     This is base class for objects that provide meta-data descriptions.
     """
-    __exports__: List[_Exportable or Tuple] = [
+    __exports__: List[_Exportable or Tuple or str] = [
 
     ]  #: the attribute names that are exported
 
@@ -215,16 +215,28 @@ class _MetaDescription(ABC):
 
         :return: a dictionary of descriptive values (or `None`)
         """
-        # Collect the exportable definitions.
-        exports = [
-            ex if isinstance(ex, _Exportable)
-            else _Exportable(*ex)
-            for ex in self.__exports__
-        ]
-        # Create a dictionary.
-        return {
-            ex.export_as: getattr(self, ex.attr_name) for ex in exports
-        }
+        # Create a list of `_Exportable` objects from the definitions we find
+        # in the `__exports__` library.
+        exports = set()
+        for export in self.__exports__:
+            if isinstance(export, _Exportable):
+                exports.add(export)
+            elif isinstance(export, Tuple):
+                exports.add(_Exportable(*export))
+            elif isinstance(export, str):
+                exports.add(_Exportable(export, export))
+            else:
+                raise RuntimeError(f'Unknown export definition: {export}')
+
+        # Create the dictionary to hold the exported values.
+        exported = {}
+        for export in exports:
+            value = getattr(self, export.attr_name)
+            if callable(value):
+                value = value()
+            exported[export.export_as] = value
+        # Return what we got.
+        return exported
 
 
 class _Synonyms(object):
@@ -702,11 +714,21 @@ class ColumnMeta(_MetaDescription, _HasSynonyms):
         return None
 
 
-class TableMeta(_MetaDescription, _HasSynonyms):
+class _TableMeta(_MetaDescription, _HasSynonyms):
     """
     Metadata for tables.
+
+    .. note::
+
+        This class contains *only* the metadata for the table itself, not
+        the column meta-data for columns in the model class.
+
+    .. seealso::
+
+        :py:class:`TableMeta`
     """
     def __init__(self,
+                 tablename: str,
                  label: str = None,
                  synonyms: Iterable[str] = None):
         """
@@ -714,6 +736,7 @@ class TableMeta(_MetaDescription, _HasSynonyms):
         :param label: the human-friendly label for the column
         """
         super().__init__(synonyms=synonyms)
+        self._tablename = tablename
         self._label = label
 
     @property
@@ -725,39 +748,67 @@ class TableMeta(_MetaDescription, _HasSynonyms):
         """
         return self._label
 
+    @property
+    def tablename(self) -> str:
+        """
+        Get the SQLAlchemy table name.
 
-class _TableColumnsConjunction(object):
+        :return: the SQLAlchemy table name
+        """
+        return self._tablename
 
+
+class TableMeta(_TableMeta):
+    """
+    Metadata for tables, including column metadata.
+    """
     def __init__(self,
-                 table_meta: TableMeta,
-                 columns: Dict[str, ColumnMeta]):
-        self.table_meta = table_meta
-        self.columns = columns
+                 tablename: str,
+                 label: str = None,
+                 synonyms: Iterable[str] = None,
+                 columns: Dict[str, ColumnMeta] = None):
+        super().__init__(tablename=tablename,
+                         label=label,
+                         synonyms=synonyms)
+        self._columns: Dict[str, ColumnMeta] = CaseInsensitiveDict(
+            columns if columns else {}
+        )
+
+    def add_column(self, name: str, column_meta: ColumnMeta):
+        self._columns[name] = column_meta
 
 
 class ModelMeta(_MetaDescription):
     """
     Metadata for entire data models.
     """
+    __exports__ = [
+        ('_title', 'title'),
+        ('_version', 'version'),
+        'urn'
+    ]
+
     def __init__(self,
                  title: str,
                  slug: str,
                  namespace: str,
                  version: str,
-                 *models: Type):
+                 models: List[Type]):
         """
 
         :param title: a friendly, human-readable title for the model
         :param slug: a short identifier for the model
-        :param version:
+        :param namespace: the namespace applied to the model
+        :param version: the model version
+        :param models: model classes that are included in the model
         """
         self._title = title
         self._slug = slug
         self._namespace = namespace
         self._version = version
-        self._table_metas: List[_TableColumnsConjunction] = []
-        for model in models:
-            self._add_model(model)
+        self._tables: Dict[str, TableMeta] = CaseInsensitiveDict({
+            tm.tablename: tm for tm in map(get_table_meta, models)
+        })
 
     def urn(self) -> str:
         """
@@ -782,34 +833,6 @@ class ModelMeta(_MetaDescription):
         Get the model version.
         """
         return self._version
-
-    def _add_model(self, model: Type):
-        # Get the table metadata from the model class.
-        table_meta: TableMeta = get_table_meta(model)
-        if not table_meta:
-            raise RuntimeError('The model has no table metadata!')
-        # Create a dictionary to contain the fields ('columns') meta data
-        # that we'll pull out of the model class.
-        columns: Dict[str, ColumnMeta] = {}
-        # We think this is a SQLAlchemy class.  Moreover, we expect it's a
-        # modlit model.  So, we're interested in attributes that appear to be
-        # SQLAlchemy `InstrumentedAttribute` instances that also have column
-        # metadata attached.
-        for attr_, column_ in [
-            member for member in inspect.getmembers(model)
-            if isinstance(member[1], InstrumentedAttribute)
-               and has_column_meta(member[1])
-        ]:
-            col_meta = get_column_meta(column_)
-            columns[attr_] = col_meta
-        # Add this conjunction of table-meta data and fields (indexed by
-        # their names) to the list.
-        self._table_metas.append(
-            _TableColumnsConjunction(
-                table_meta=table_meta,
-                columns=columns
-            )
-        )
 
 
 def column(dtype: Any, meta: ColumnMeta, *args, **kwargs) -> Column:
@@ -839,18 +862,42 @@ def column(dtype: Any, meta: ColumnMeta, *args, **kwargs) -> Column:
     return col
 
 
-def get_table_meta(model) -> TableMeta or None:
+def get_table_meta(model: type) -> TableMeta or None:
     """
     Retrieve the table metadata for from a model (ORM) object.
 
     :param model: the model (ORM) object
     :return: the table metadata
     """
+    # First, try to get the partial table metadata.
     try:
-        meta = getattr(model, TABLE_META_ATTR)
-        return meta if isinstance(meta, TableMeta) else None
+        _meta: _TableMeta = getattr(model, TABLE_META_ATTR)
     except AttributeError:
         return None
+    if not isinstance(_meta, _TableMeta):
+        return None
+    # Create a dictionary to contain the fields ('columns') meta data
+    # that we'll pull out of the model class.
+    columns: Dict[str, ColumnMeta] = {}
+    # We think this is a SQLAlchemy class.  Moreover, we expect it's a
+    # modlit model.  So, we're interested in attributes that appear to be
+    # SQLAlchemy `InstrumentedAttribute` instances that also have column
+    # metadata attached.
+    for attr_, column_ in [
+        member for member in inspect.getmembers(model)
+        if (
+                isinstance(member[1], InstrumentedAttribute)
+                and has_column_meta(member[1])
+        )
+    ]:
+        col_meta = get_column_meta(column_)
+        columns[attr_] = col_meta
+    # From the information we have, we can now produce a full `TableMeta`
+    # object (columns and all!)
+    return TableMeta(tablename=_meta.tablename,
+                     label=_meta.label,
+                     synonyms=_meta.synonyms,
+                     columns=columns)
 
 
 def get_column_meta(col: Column) -> ColumnMeta or None:
